@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高風險申報小工具</title>
+<link rel="icon" type="image/svg+xml" href="tooth-svgrepo-com.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #identity-container::-webkit-scrollbar { width: 6px; }
+        #identity-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        #identity-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .identity-btn { transition: all 0.15s ease; }
+        .item-card { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 穩重主色設定 */
+        .bg-primary { background-color: #0d9488; } 
+        .text-primary { color: #0d9488; }
+        .border-primary { border-color: #0d9488; }
+        .ring-primary { --tw-ring-color: #0d9488; }
+        .bg-primary-light { background-color: #f0fdfa; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 text-base"> <div class="max-w-2xl mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">高風險申報小工具</h1>
+            <p class="text-slate-500 mt-2">快速勾選身份以查看可申報項目與備註</p>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div class="flex items-center gap-2">
+                    <span class="bg-primary w-2 h-6 rounded-full"></span>
+                    <h3 class="font-bold text-slate-700 text-lg">病人身份 (可複選)</h3>
+                </div>
+                <button onclick="clearAll()" class="text-sm text-primary hover:opacity-80 font-bold px-3 py-1 border border-primary/20 rounded-lg bg-white">
+                    清空重選
+                </button>
+            </div>
+            
+            <div class="px-5 py-4 border-b border-slate-50">
+                <input type="text" id="idSearch" oninput="filterIdentities()" 
+                       placeholder="搜尋身份關鍵字..." 
+                       class="w-full px-4 py-3 text-base bg-slate-100 border-none rounded-xl focus:ring-2 ring-primary transition-all outline-none">
+            </div>
+
+            <div id="identity-container" class="p-5 flex flex-wrap gap-3 max-h-64 overflow-y-auto content-start">
+                <div class="w-full text-center py-4 text-slate-400">資料載入中...</div>
+            </div>
+        </div>
+
+        <div id="notes-section" class="hidden mb-8">
+            <div id="notes-container" class="space-y-3"></div>
+        </div>
+
+        <div class="space-y-5">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-base font-bold text-slate-500 uppercase tracking-widest">可申報項目清單</h3>
+                <span id="selected-count" class="text-xs bg-slate-200 px-3 py-1 rounded-full text-slate-600 font-bold hidden"></span>
+            </div>
+            
+            <div id="items-container" class="grid grid-cols-1 gap-4">
+                <div class="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                    <p class="text-slate-400 font-medium">請先選擇上方身份</p>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-16 pt-8 border-t border-slate-200">
+            <div class="bg-slate-100/50 rounded-2xl p-6">
+                <p class="text-rose-600 font-bold text-base mb-4 flex items-center gap-2">
+                    <span>⚠️</span> 注意：本功能僅供參考，請務必依現行法規自行查證正確性。
+                </p>
+                <div class="flex items-baseline gap-3 text-slate-600">
+                    <span class="font-bold flex-shrink-0">參考資料：</span>
+                    <a href="https://www.cda.org.tw/cda/journal_list.jsp?cid=211" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="text-primary hover:underline font-bold inline-flex items-center gap-1">
+                       2025 牙醫全聯會實用手冊
+                       <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                       </svg>
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxNcomNB0tdgh7I7jDMnb9Z_G5KgDTkC_OhMCjrlAZItf9ol41RCVh7f7F98e58xGzd/exec';
+        const CACHE_KEY = 'medical_billing_data';
+        
+        let dbData = [];
+        let selectedIdentities = new Set();
+
+        async function loadInitialData() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    dbData = JSON.parse(cachedData);
+                    renderButtons();
+                } catch (e) { console.error('快取解析失敗', e); }
+            }
+            await fetchFreshData();
+        }
+
+        async function fetchFreshData() {
+            try {
+                const response = await fetch(API_URL);
+                const freshData = await response.json();
+                if (JSON.stringify(freshData) !== JSON.stringify(dbData)) {
+                    dbData = freshData;
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(freshData));
+                    renderButtons();
+                    updateDisplay();
+                }
+            } catch (error) {
+                console.error('API 更新失敗:', error);
+            }
+        }
+
+        function renderButtons() {
+            const container = document.getElementById('identity-container');
+            container.innerHTML = '';
+            dbData.forEach(entry => {
+                const btn = document.createElement('button');
+                const isSelected = selectedIdentities.has(entry.identity);
+                btn.className = `identity-btn px-4 py-2 border border-transparent rounded-full font-medium transition-all ${
+                    isSelected ? 'bg-primary text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`;
+                btn.innerText = entry.identity;
+                btn.onclick = () => toggleIdentity(entry.identity, btn);
+                container.appendChild(btn);
+            });
+            filterIdentities();
+        }
+
+        function filterIdentities() {
+            const term = document.getElementById('idSearch').value.toLowerCase();
+            document.querySelectorAll('.identity-btn').forEach(btn => {
+                btn.style.display = btn.innerText.toLowerCase().includes(term) ? 'inline-block' : 'none';
+            });
+        }
+
+        function toggleIdentity(identity, btn) {
+            if (selectedIdentities.has(identity)) {
+                selectedIdentities.delete(identity);
+                btn.classList.remove('bg-primary', 'text-white', 'shadow-md');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            } else {
+                selectedIdentities.add(identity);
+                btn.classList.remove('bg-slate-100', 'text-slate-600');
+                btn.classList.add('bg-primary', 'text-white', 'shadow-md');
+            }
+            updateDisplay();
+        }
+
+        function clearAll() {
+            selectedIdentities.clear();
+            document.querySelectorAll('.identity-btn').forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white', 'shadow-md');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            document.getElementById('idSearch').value = '';
+            filterIdentities();
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const notesContainer = document.getElementById('notes-container');
+            const itemsContainer = document.getElementById('items-container');
+            const notesSection = document.getElementById('notes-section');
+            const countTag = document.getElementById('selected-count');
+            const selectedData = dbData.filter(d => selectedIdentities.has(d.identity));
+
+            notesContainer.innerHTML = '';
+            if (selectedData.length > 0) {
+                const hasNotes = selectedData.some(d => d.note && d.note.toString().trim() !== "");
+                if (hasNotes) {
+                    notesSection.classList.remove('hidden');
+                    selectedData.forEach(d => {
+                        if (d.note && d.note.toString().trim() !== "") {
+                            const noteDiv = document.createElement('div');
+                            noteDiv.className = 'p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl shadow-sm';
+                            const formattedNote = d.note.toString().replace(/\n/g, '<br>');
+                            noteDiv.innerHTML = `<p class="text-xs font-bold text-amber-600 uppercase mb-1">${d.identity}</p>
+                                                 <p class="text-base text-amber-900 leading-relaxed">${formattedNote}</p>`;
+                            notesContainer.appendChild(noteDiv);
+                        }
+                    });
+                } else { notesSection.classList.add('hidden'); }
+                countTag.innerText = `已選 ${selectedIdentities.size} 項`;
+                countTag.classList.remove('hidden');
+            } else {
+                notesSection.classList.add('hidden');
+                countTag.classList.add('hidden');
+            }
+
+            itemsContainer.innerHTML = '';
+            if (selectedIdentities.size === 0) {
+                itemsContainer.innerHTML = `<div class="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200"><p class="text-slate-400">請先選擇上方身份</p></div>`;
+                return;
+            }
+
+            const itemMap = {};
+            selectedData.forEach(d => {
+                d.items.forEach(item => {
+                    if (!itemMap[item]) itemMap[item] = [];
+                    itemMap[item].push(d.identity);
+                });
+            });
+
+            const itemNames = Object.keys(itemMap);
+            itemNames.forEach(itemName => {
+                const card = document.createElement('div');
+                card.className = 'p-5 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col gap-3';
+                let sourceTags = itemMap[itemName].map(id => `<span class="px-2 py-1 bg-primary-light text-primary text-xs font-bold rounded-md border border-primary/10 italic">${id}</span>`).join('');
+                card.innerHTML = `<div class="flex justify-between items-start gap-4"><h4 class="font-bold text-slate-800 text-lg leading-tight">${itemName}</h4><div class="flex flex-wrap gap-1 justify-end">${sourceTags}</div></div>`;
+                itemsContainer.appendChild(card);
+            });
+        }
+
+        loadInitialData();
+    </script>
+</body>
+</html>
