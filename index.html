@@ -70,19 +70,20 @@
             </div>
         </div>
 
-        <footer class="mt-16 pt-8 border-t border-slate-200">
+<footer class="mt-16 pt-8 border-t border-slate-200">
             <div class="bg-slate-100/50 rounded-2xl p-6">
-                <p class="text-rose-600 font-bold text-base mb-4 flex items-center gap-2">
-                    <span>⚠️</span> 注意：本功能僅供參考，請務必依現行法規自行查證正確性。
+                <p class="text-rose-600 font-bold text-base mb-4 flex items-start gap-2">
+                    <span class="flex-shrink-0">⚠️</span> 
+                    <span>注意：本功能僅供參考，請務必依現行法規自行查證正確性。</span>
                 </p>
-                <div class="flex items-baseline gap-3 text-slate-600">
-                    <span class="font-bold flex-shrink-0">參考資料：</span>
+                <div class="flex flex-col gap-2 text-slate-600">
+                    <span class="font-bold text-slate-500 text-sm uppercase tracking-wider">參考資料：</span>
                     <a href="https://www.cda.org.tw/cda/journal_list.jsp?cid=211" 
                        target="_blank" 
                        rel="noopener noreferrer" 
-                       class="text-primary hover:underline font-bold inline-flex items-center gap-1">
+                       class="text-primary hover:underline font-bold text-lg inline-flex items-center gap-2 group">
                        2025 牙醫全聯會實用手冊
-                       <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <svg class="w-5 h-5 flex-shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                        </svg>
                     </a>
@@ -92,7 +93,7 @@
     </div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbxNcomNB0tdgh7I7jDMnb9Z_G5KgDTkC_OhMCjrlAZItf9ol41RCVh7f7F98e58xGzd/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbywep1sWNEVzpk50vijYQ5JIUzQPTEA5OeSObWfOOhad3KiMpi4j0sbbwZ8crC_2CFwmw/exec';
         const CACHE_KEY = 'medical_billing_data';
         
         let dbData = [];
@@ -124,15 +125,21 @@
             }
         }
 
-        function renderButtons() {
+function renderButtons() {
             const container = document.getElementById('identity-container');
             container.innerHTML = '';
             dbData.forEach(entry => {
                 const btn = document.createElement('button');
                 const isSelected = selectedIdentities.has(entry.identity);
-                btn.className = `identity-btn px-4 py-2 border border-transparent rounded-full font-medium transition-all ${
-                    isSelected ? 'bg-primary text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`;
+                
+                // 初始化按鈕樣式
+                btn.className = 'identity-btn px-4 py-2 border border-transparent rounded-full font-medium transition-all shadow-sm';
+                if (isSelected) {
+                    btn.classList.add('bg-primary', 'text-white', 'shadow-md');
+                } else {
+                    btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+                }
+                
                 btn.innerText = entry.identity;
                 btn.onclick = () => toggleIdentity(entry.identity, btn);
                 container.appendChild(btn);
@@ -147,16 +154,21 @@
             });
         }
 
-        function toggleIdentity(identity, btn) {
+function toggleIdentity(identity, btn) {
+            // 立即切換 Set 中的狀態
             if (selectedIdentities.has(identity)) {
                 selectedIdentities.delete(identity);
+                // 立即視覺反饋：變回灰色
                 btn.classList.remove('bg-primary', 'text-white', 'shadow-md');
-                btn.classList.add('bg-slate-100', 'text-slate-600');
+                btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
             } else {
                 selectedIdentities.add(identity);
-                btn.classList.remove('bg-slate-100', 'text-slate-600');
+                // 立即視覺反饋：變為綠色
+                btn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
                 btn.classList.add('bg-primary', 'text-white', 'shadow-md');
             }
+            
+            // 同步更新下方的清單與備註，但不重新渲染按鈕區以免閃爍
             updateDisplay();
         }
 
