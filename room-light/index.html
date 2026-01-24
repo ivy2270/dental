@@ -27,9 +27,12 @@
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyCTfASN8xBtckViSGKFi0099zy7RfH1P2k7xqkNHP1H-b2sGKPNX30LRSRpXASIYTD/exec"; 
     const urlParams = new URLSearchParams(window.location.search);
-    const myRoomId = urlParams.get('room');
+    
+    // 重點修改：如果網址是 ?room=1，我們在程式內把它當作 0 (陣列的第一個)
+    const rawRoomParam = urlParams.get('room');
+    const myRoomId = rawRoomParam ? (parseInt(rawRoomParam) - 1) : null;
 
-    // JSONP 請求工具
+    // JSONP 工具 (保持不變)
     function jsonp(url) {
         return new Promise((resolve) => {
             const callbackName = 'jsonp_cb_' + Math.round(100000 * Math.random());
@@ -50,28 +53,25 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyCTfASN8xBtckViSGKFi00
             render(data);
             document.getElementById('loading').innerText = '已同步';
         } catch (e) {
-            document.getElementById('loading').innerText = '同步中...';
+            document.getElementById('loading').innerText = '連線中...';
         }
     }
 
     async function toggle(id) {
-        if (myRoomId !== null && myRoomId != id) return;
+        // 這裡的 id 是從 0 開始的索引
+        if (myRoomId !== null && myRoomId !== id) return;
         document.getElementById('loading').innerText = '傳送中...';
         await jsonp(`${GAS_URL}?action=toggle&roomId=${id}`);
         refreshStatus();
     }
 
-    // render 函式保持不變...
-    // setInterval(refreshStatus, 3000) 保持不變...
-
-    // 繪製介面
     function render(data) {
         const app = document.getElementById('app');
         app.innerHTML = '';
 
         data.forEach(room => {
-            // 如果是診間模式，只顯示自己的房間；如果是櫃台模式(myRoomId為null)，顯示全部
-            if (myRoomId !== null && myRoomId != room.id) return;
+            // myRoomId 已經被我們減 1 了，所以可以直接跟 room.id (0, 1, 2...) 比較
+            if (myRoomId !== null && myRoomId !== room.id) return;
 
             const div = document.createElement('div');
             div.className = 'room-row';
@@ -81,11 +81,9 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyCTfASN8xBtckViSGKFi00
             name.innerText = room.name;
 
             const light = document.createElement('div');
-            // status 為 1 是紅燈，0 是綠燈
             light.className = `light ${room.status === 1 ? 'red' : 'green'}`;
             
-            // 權限判斷：非自己診間且不是櫃台，就加上不可點擊樣式
-            if (myRoomId !== null && myRoomId != room.id) {
+            if (myRoomId !== null && myRoomId !== room.id) {
                 light.classList.add('disabled');
             } else {
                 light.onclick = () => toggle(room.id);
@@ -97,7 +95,6 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyCTfASN8xBtckViSGKFi00
         });
     }
 
-    // 初始化與定期刷新 (每3秒抓一次資料)
     refreshStatus();
     setInterval(refreshStatus, 3000);
 
