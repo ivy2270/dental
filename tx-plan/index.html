@@ -3,45 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙科治療計劃 V6 - AWS 修正版</title>
+    <title>牙科治療計劃</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
         body { font-family: 'PingFang TC', sans-serif; background-color: #2c2e30; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        .top-bar { 
-            background: #ffffff; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; 
-            align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100;
-        }
+        .top-bar { background: #ffffff; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; }
         .tool-group { display: flex; align-items: center; gap: 5px; border-right: 1px solid #eee; padding-right: 8px; }
-        .tool-group:last-child { border: none; }
-
         #main-viewport { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 20px; }
         #canvas-scaler { transform-origin: top center; transition: transform 0.2s; }
         #canvas-container { background: white; box-shadow: 0 0 30px rgba(0,0,0,0.5); width: 800px; height: 1131px; position: relative; }
-
-        .side-panel { 
-            position: fixed; right: 0; top: 0; width: 300px; height: 100%; 
-            background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.2); z-index: 200;
-            display: flex; flex-direction: column; transition: 0.3s ease;
-        }
-        .side-panel.closed { transform: translateX(300px); }
-        .panel-toggle { 
-            position: absolute; left: -45px; top: 120px; width: 45px; height: 60px; 
-            background: var(--primary); color: white; border-radius: 10px 0 0 10px; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-        }
-        .panel-content { padding: 20px; overflow-y: auto; flex: 1; }
-        
+        .side-panel { position: fixed; right: 0; top: 0; width: 320px; height: 100%; background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.2); z-index: 200; display: flex; flex-direction: column; transition: 0.3s ease; }
+        .side-panel.closed { transform: translateX(320px); }
+        .panel-toggle { position: absolute; left: -45px; top: 120px; width: 45px; height: 60px; background: var(--primary); color: white; border-radius: 10px 0 0 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
         .btn { padding: 8px 12px; cursor: pointer; border: 1px solid #ddd; border-radius: 6px; background: white; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 4px; }
         .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-success { background: var(--success); color: white; border-color: var(--success); }
+        .btn-danger { background: #fff; color: var(--danger); border-color: var(--danger); }
         .active { background: #e0f0ff; border-color: var(--primary); color: var(--primary); }
-        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-        
-        .item-row { background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 5px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        input, select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 8px; font-size: 13px; }
+        label { font-size: 12px; font-weight: bold; color: #666; display: block; margin-bottom: 2px; }
+        .phase-block { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; background: #fafafa; }
+        .item-row { background: white; padding: 6px 10px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         #status-tag { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 3px 10px; border-radius: 15px; font-size: 11px; z-index: 1000; }
     </style>
 </head>
@@ -52,28 +38,26 @@
     <div class="top-bar">
         <div class="tool-group">
             <input type="text" id="p-name" placeholder="病人" style="width:80px; margin:0;">
-            <select id="doc-select" style="width:110px; margin:0;"><option value="">醫師載入中</option></select>
+            <select id="doc-select" style="width:130px; margin:0;" onchange="handleDocChange()">
+                <option value="">載入中...</option>
+            </select>
             <button class="btn btn-primary" onclick="updateHeaderFooter()">確認</button>
         </div>
-        
         <div class="tool-group">
-            <label for="bg-upload" class="btn"><i class="fa-solid fa-x-ray"></i> X光</label>
+            <button class="btn" onclick="undo()" title="上一步"><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="btn btn-danger" onclick="deleteSelected()" title="刪除選取項目"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+        <div class="tool-group">
+            <label for="bg-upload" class="btn" style="display:inline-flex; margin:0;"><i class="fa-solid fa-x-ray"></i> X光</label>
             <input type="file" id="bg-upload" hidden accept="image/*">
             <button class="btn" onclick="addPureText()"><i class="fa-solid fa-font"></i> 文字</button>
             <button class="btn" onclick="addImplantStamp()"><i class="fa-solid fa-tooth"></i> 植體</button>
         </div>
-
         <div class="tool-group">
             <button class="btn tool-btn active" data-mode="select" onclick="setMode('select')"><i class="fa-solid fa-mouse-pointer"></i></button>
             <button class="btn tool-btn" data-mode="brush" onclick="setMode('brush')"><i class="fa-solid fa-paintbrush"></i></button>
             <button class="btn tool-btn" data-mode="highlighter" onclick="setMode('highlighter')"><i class="fa-solid fa-highlighter"></i></button>
         </div>
-
-        <div class="tool-group">
-            <button class="btn" onclick="undo()" title="上一步"><i class="fa-solid fa-rotate-left"></i></button>
-            <button class="btn" onclick="deleteSelected()" title="刪除選取"><i class="fa-solid fa-trash-can"></i></button>
-        </div>
-
         <button class="btn btn-success" style="margin-left:auto" onclick="saveAsJPG()"><i class="fa-solid fa-file-export"></i> 輸出 A4</button>
     </div>
 
@@ -85,26 +69,41 @@
         </div>
     </div>
 
-    <div class="side-panel closed" id="side-panel">
-        <div class="panel-toggle" onclick="toggleSidePanel()">
-            <i class="fa-solid fa-list-check"></i><br>計<br>畫
-        </div>
+    <div class="side-panel" id="side-panel">
+        <div class="panel-toggle" onclick="toggleSidePanel()"><i class="fa-solid fa-list-check"></i></div>
         <div class="panel-content">
-            <h4 style="margin:0 0 15px 0">📋 治療項目計畫</h4>
-            <label style="font-size:12px">牙位</label>
-            <input type="text" id="t-pos" placeholder="如: 16, 26">
-            <label style="font-size:12px">治療項目</label>
-            <select id="t-select" onchange="autoFillPrice()"><option value="">載入中...</option></select>
-            <label style="font-size:12px">金額 (NT$)</label>
-            <input type="number" id="t-price">
-            <label style="font-size:12px">備註</label>
-            <input type="text" id="t-note">
-            <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="addToPlan()">＋加入計畫表格</button>
-
-            <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-                <div id="item-list"></div>
-                <div id="total-price" style="text-align:right; font-weight:bold; color:var(--danger); font-size:16px; margin-top:10px;">總計：$0</div>
+            <h4 style="margin:0 0 10px 0">📋 治療階段管理</h4>
+            
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #e9ecef; padding: 10px; border-radius: 6px;">
+                <input type="checkbox" id="show-total-toggle" checked onchange="renderAllTables()" style="width:auto; margin:0;">
+                <label for="show-total-toggle" style="margin:0; cursor:pointer;">顯示各階段總額</label>
             </div>
+
+            <div class="phase-block">
+                <label>1. 選擇/建立階段</label>
+                <div style="display:flex; gap:5px;">
+                    <select id="phase-selector" style="flex:1" onchange="switchPhase()"></select>
+                    <button class="btn" onclick="addNewPhase()" title="新增階段"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <hr>
+                <label>2. 新增治療項目</label>
+                <input type="text" id="t-pos" placeholder="牙位">
+                <select id="t-select" onchange="autoFillPrice()"></select>
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label>單價</label>
+                        <input type="number" id="t-price">
+                    </div>
+                    <div style="flex:1">
+                        <label>顆數</label>
+                        <input type="number" id="t-count" value="1">
+                    </div>
+                </div>
+                <input type="text" id="t-note" placeholder="備註">
+                <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="addToPlan()">＋加入目前階段</button>
+            </div>
+
+            <div id="phase-list-ui"></div>
         </div>
     </div>
 
@@ -112,23 +111,17 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwqkgcZJzA1YdDUJJZYlGaxyivHFa1XVxVI-eE9ls-B8u7AP-MKCZ9I0BpjIZ0IUkCkzQ/exec"; 
     const IMPLANT_URL = "https://rainchord.s3.ap-east-2.amazonaws.com/inventory/1774288032004_implant.svg";
     const A4_W = 800, A4_H = 1131;
-    let planItems = [];
-    let treatmentData = [];
-    let history = []; 
     
-    const canvas = new fabric.Canvas('c', { 
-        width: A4_W, height: A4_H, backgroundColor: '#fff',
-        preserveObjectStacking: true,
-        stopContextMenu: true
-    });
+    let phases = [{ id: Date.now(), name: "第一階段", items: [] }];
+    let currentPhaseId = phases[0].id;
+    let treatmentData = [];
+    let history = [];
+    
+    const canvas = new fabric.Canvas('c', { width: A4_W, height: A4_H, backgroundColor: '#fff', preserveObjectStacking: true });
 
     function handleResize() {
-        const viewport = document.getElementById('main-viewport');
-        const scaler = document.getElementById('canvas-scaler');
-        const padding = 40;
-        const availableW = viewport.clientWidth - padding;
-        const scale = availableW < A4_W ? availableW / A4_W : 1;
-        scaler.style.transform = `scale(${scale})`;
+        const scale = (document.getElementById('main-viewport').clientWidth - 40) / A4_W;
+        document.getElementById('canvas-scaler').style.transform = `scale(${scale < 1 ? scale : 1})`;
     }
     window.addEventListener('resize', handleResize);
     setTimeout(handleResize, 500);
@@ -138,108 +131,196 @@
             const resp = await fetch(GAS_URL);
             const json = await resp.json();
             treatmentData = json.data.treatments;
-            document.getElementById('t-select').innerHTML = '<option value="">請選擇...</option>' + 
+            
+            // 治療項目初始化
+            document.getElementById('t-select').innerHTML = '<option value="">請選擇項目...</option>' + 
                 treatmentData.map(t => `<option value="${t.item}">${t.category}|${t.item}</option>`).join('');
-            document.getElementById('doc-select').innerHTML = json.data.doctors.map(d => `<option value="${d.name}">${d.name} ${d.title}</option>`).join('');
-            document.getElementById('status-tag').innerText = "✅ 同步完成";
+            
+            // 醫師選單初始化：增加「手動輸入」選項
+            const docOptions = json.data.doctors.map(d => `<option value="${d.name}">${d.name} ${d.title}</option>`).join('');
+            document.getElementById('doc-select').innerHTML = docOptions + `<option value="CUSTOM_ENTRY" style="color:blue; font-weight:bold;">➜ 手動輸入其他醫師...</option>`;
+            
+            updatePhaseUI();
             saveState();
-        } catch (e) { document.getElementById('status-tag').innerText = "❌ 讀取失敗"; }
+            document.getElementById('status-tag').innerText = "✅ 同步完成";
+        } catch (e) { document.getElementById('status-tag').innerText = "❌ 同步失敗"; }
     }
 
+    // --- 醫師選單邏輯優化 ---
+    function handleDocChange() {
+        const select = document.getElementById('doc-select');
+        if (select.value === "CUSTOM_ENTRY") {
+            const customName = prompt("請輸入醫師姓名:");
+            if (customName && customName.trim() !== "") {
+                // 建立一個新的選項並加到選單最前面 (或自訂醫師區)
+                const newOpt = document.createElement('option');
+                newOpt.value = customName;
+                newOpt.text = `${customName}`;
+                newOpt.selected = true;
+                select.add(newOpt, select.options[0]);
+                updateHeaderFooter(); // 自動更新畫布
+            } else {
+                select.value = ""; // 如果取消，回到空值
+            }
+        } else {
+            updateHeaderFooter(); // 一般選擇則直接更新畫布
+        }
+    }
+
+    // --- 歷史紀錄與畫布功能 ---
     function saveState() {
         const json = JSON.stringify(canvas.toObject(['id', 'selectable', 'evented']));
         if (history.length > 0 && history[history.length - 1] === json) return;
         history.push(json);
         if (history.length > 30) history.shift();
     }
-    
+
     function undo() {
         if (history.length <= 1) return;
         history.pop();
-        const lastState = history[history.length - 1];
-        canvas.loadFromJSON(lastState, () => {
-            canvas.renderAll();
-        });
+        canvas.loadFromJSON(history[history.length - 1], () => canvas.renderAll());
     }
 
-    // 修正表格定位：強制固定於 top: 720
-    function renderTable() {
-        const old = canvas.getObjects().find(o => o.id === 'plan-table');
-        if(old) canvas.remove(old);
+    function deleteSelected() {
+        const activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            canvas.remove(...activeObjects);
+            canvas.discardActiveObject();
+            saveState();
+        }
+    }
 
-        const tableGroup = new fabric.Group([], { 
-            id: 'plan-table', 
-            left: 50, 
-            top: 720, 
-            selectable: true,
-            originX: 'left',
-            originY: 'top'
+    window.addEventListener('keydown', (e) => {
+        if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) deleteSelected();
+    });
+
+    canvas.on('object:modified', saveState);
+    canvas.on('object:added', (e) => { if (!e.target.id || !e.target.id.toString().startsWith('table-')) saveState(); });
+
+    // --- 階段與項目管理 ---
+    function addNewPhase() {
+        const name = prompt("請輸入階段名稱:", `第 ${phases.length + 1} 階段`);
+        if (!name) return;
+        const newPhase = { id: Date.now(), name: name, items: [] };
+        phases.push(newPhase);
+        currentPhaseId = newPhase.id;
+        updatePhaseUI();
+        renderAllTables();
+    }
+
+    function switchPhase() {
+        currentPhaseId = parseInt(document.getElementById('phase-selector').value);
+        updatePhaseUI();
+    }
+
+    function updatePhaseUI() {
+        const selector = document.getElementById('phase-selector');
+        selector.innerHTML = phases.map(p => `<option value="${p.id}" ${p.id === currentPhaseId ? 'selected':''}>${p.name}</option>`).join('');
+        const listUI = document.getElementById('phase-list-ui');
+        listUI.innerHTML = phases.map(p => `
+            <div style="margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <b style="font-size:14px; color:var(--primary)">${p.name}</b>
+                    <button class="btn" style="padding:2px 5px; font-size:10px;" onclick="removePhase(${p.id})">刪除</button>
+                </div>
+                ${p.items.map(it => `
+                    <div class="item-row">
+                        <span>${it.pos} ${it.item} x${it.count}</span>
+                        <button style="border:none; background:none; color:red; cursor:pointer;" onclick="removeItem(${p.id}, ${it.id})">×</button>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+    }
+
+    function removePhase(id) {
+        if (phases.length <= 1) return;
+        phases = phases.filter(p => p.id !== id);
+        if (currentPhaseId === id) currentPhaseId = phases[0].id;
+        updatePhaseUI();
+        renderAllTables();
+    }
+
+    function addToPlan() {
+        const item = document.getElementById('t-select').value;
+        const count = parseInt(document.getElementById('t-count').value) || 1;
+        if(!item) return;
+        const phase = phases.find(p => p.id === currentPhaseId);
+        phase.items.push({
+            id: Date.now(),
+            pos: document.getElementById('t-pos').value,
+            item: item,
+            price: parseInt(document.getElementById('t-price').value) || 0,
+            count: count,
+            note: document.getElementById('t-note').value
         });
-        const colW = [60, 280, 100, 260], rowH = 35;
-        let curY = 0;
+        updatePhaseUI();
+        renderAllTables();
+    }
 
-        const headers = ["牙位", "項目", "金額", "備註"];
-        let curX = 0;
-        headers.forEach((h, i) => {
-            tableGroup.addWithUpdate(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#f2f2f2', stroke: '#ccc' }));
-            tableGroup.addWithUpdate(new fabric.Text(h, { left: curX + 5, top: curY + 8, fontSize: 16, fontWeight: 'bold' }));
-            curX += colW[i];
-        });
+    function removeItem(pId, itId) {
+        const phase = phases.find(p => p.id === pId);
+        phase.items = phase.items.filter(it => it.id !== itId);
+        updatePhaseUI();
+        renderAllTables();
+    }
 
-        let total = 0;
-        planItems.forEach(p => {
-            curY += rowH; curX = 0; total += p.price;
-            const data = [p.pos, p.item, p.price.toLocaleString(), p.note];
-            data.forEach((d, i) => {
-                tableGroup.addWithUpdate(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#fff', stroke: '#ccc' }));
-                tableGroup.addWithUpdate(new fabric.Text(String(d), { left: curX + 5, top: curY + 8, fontSize: 14 }));
+    function renderAllTables() {
+        canvas.getObjects().filter(o => o.id && o.id.toString().startsWith('table-')).forEach(o => canvas.remove(o));
+        const showTotal = document.getElementById('show-total-toggle').checked;
+        let startY = 700; 
+        const colW = [60, 260, 60, 90, 230], rowH = 30;
+
+        phases.forEach((phase) => {
+            if (phase.items.length === 0) return;
+            let elements = [];
+            let curY = 0;
+            elements.push(new fabric.Text(phase.name, { left: 0, top: curY - 25, fontSize: 18, fontWeight: 'bold', fill: '#007bff' }));
+            const headers = ["牙位", "治療項目", "顆數", "單價", "備註"];
+            let curX = 0;
+            headers.forEach((h, i) => {
+                elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#f2f2f2', stroke: '#ccc' }));
+                elements.push(new fabric.Text(h, { left: curX + 5, top: curY + 7, fontSize: 14, fontWeight: 'bold' }));
                 curX += colW[i];
             });
+            let phaseTotal = 0;
+            phase.items.forEach(it => {
+                curY += rowH; curX = 0;
+                phaseTotal += (it.price * it.count);
+                const rowData = [it.pos, it.item, it.count, it.price.toLocaleString(), it.note];
+                rowData.forEach((d, i) => {
+                    elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#fff', stroke: '#ccc' }));
+                    elements.push(new fabric.Text(String(d), { left: curX + 5, top: curY + 7, fontSize: 13 }));
+                    curX += colW[i];
+                });
+            });
+            if (showTotal) {
+                curY += rowH;
+                elements.push(new fabric.Rect({ left: 0, top: curY, width: 700, height: rowH + 5, fill: '#fff9e6', stroke: '#ccc' }));
+                elements.push(new fabric.Text(`階段小計：NT$ ${phaseTotal.toLocaleString()}`, { left: 480, top: curY + 7, fontSize: 15, fontWeight: 'bold', fill: '#d33' }));
+            }
+            const tableGroup = new fabric.Group(elements, { id: 'table-' + phase.id, left: 50, top: startY, selectable: true });
+            canvas.add(tableGroup);
+            startY += (tableGroup.height + 60); 
         });
-
-        curY += rowH;
-        tableGroup.addWithUpdate(new fabric.Rect({ left: 0, top: curY, width: 700, height: 45, fill: '#fff9e6', stroke: '#ccc' }));
-        tableGroup.addWithUpdate(new fabric.Text(`總計：NT$ ${total.toLocaleString()}`, { left: 450, top: curY + 12, fontSize: 18, fontWeight: 'bold', fill: '#d33' }));
-        tableGroup.addWithUpdate(new fabric.Text(`列印日期：${new Date().toLocaleDateString()}`, { left: 10, top: curY + 15, fontSize: 13 }));
-
-        // 關鍵修正：確保物件生成後座標正確
-        tableGroup.set({ left: 50, top: 720 });
-        tableGroup.setCoords(); 
-
-        canvas.add(tableGroup);
         canvas.renderAll();
         saveState();
     }
 
-    function addPureText() {
-        const t = new fabric.IText('標註文字', { 
-            left: 400, top: 300, fontSize: 22, fill: '#ffffff', 
-            fontWeight: 'bold', shadow: 'rgba(0,0,0,1) 2px 2px 3px' 
-        });
-        canvas.add(t);
-        canvas.setActiveObject(t);
-        saveState();
-    }
-
-    // 更新植體網址並解決跨網域問題
+    // --- 工具功能 ---
     function addImplantStamp() {
         fabric.loadSVGFromURL(IMPLANT_URL, (objects, options) => {
-            if (!objects) {
-                alert("植體圖檔載入失敗，請確認 AWS S3 權限或網址是否正確。");
-                return;
-            }
             const implant = fabric.util.groupSVGElements(objects, options);
-            implant.set({ 
-                left: 400, top: 300, 
-                originX: 'center', originY: 'center',                
-            });
-			// 強制將植體寬度縮小到 60 像素，高度會等比例縮放
-        implant.scaleToWidth(60);
+            implant.set({ left: 400, top: 300, originX: 'center', originY: 'center' });
+            implant.scaleToWidth(60);
             canvas.add(implant);
             canvas.setActiveObject(implant);
-            canvas.renderAll();
-            saveState();
         }, null, { crossOrigin: 'anonymous' });
+    }
+
+    function addPureText() {
+        const t = new fabric.IText('標註文字', { left: 400, top: 300, fontSize: 22, fill: '#ffffff', fontWeight: 'bold', shadow: 'rgba(0,0,0,1) 2px 2px 3px' });
+        canvas.add(t);
     }
 
     function setMode(mode) {
@@ -253,66 +334,24 @@
         }
     }
 
-    function addToPlan() {
-        const item = document.getElementById('t-select').value;
-        if(!item) return;
-        planItems.push({
-            id: Date.now(),
-            pos: document.getElementById('t-pos').value,
-            item: item,
-            price: parseInt(document.getElementById('t-price').value) || 0,
-            note: document.getElementById('t-note').value
-        });
-        updatePanelList();
-        renderTable();
-    }
-
-    function updatePanelList() {
-        let total = 0;
-        document.getElementById('item-list').innerHTML = planItems.map(p => {
-            total += p.price;
-            return `<div class="item-row">
-                <div><b>${p.pos}</b> ${p.item} ($${p.price})</div>
-                <button class="btn" style="padding:2px; color:red" onclick="removeItem(${p.id})">🗑️</button>
-            </div>`;
-        }).join('');
-        document.getElementById('total-price').innerText = `總計：$${total.toLocaleString()}`;
-    }
-
-    function removeItem(id) {
-        planItems = planItems.filter(p => p.id !== id);
-        updatePanelList();
-        renderTable();
-    }
-
     function updateHeaderFooter() {
         const name = document.getElementById('p-name').value;
         const doc = document.getElementById('doc-select').value;
-        const oldN = canvas.getObjects().find(o => o.id === 'label-name');
-        if(oldN) canvas.remove(oldN);
+        canvas.getObjects().filter(o => o.id === 'label-name' || o.id === 'label-doc').forEach(o => canvas.remove(o));
         canvas.add(new fabric.Text(`病患姓名：${name}`, { left: 50, top: 30, fontSize: 24, fontWeight: 'bold', id: 'label-name' }));
-        const oldD = canvas.getObjects().find(o => o.id === 'label-doc');
-        if(oldD) canvas.remove(oldD);
         canvas.add(new fabric.Text(`主治醫師：${doc}`, { left: 520, top: 1080, fontSize: 18, id: 'label-doc' }));
-        saveState();
     }
 
     document.getElementById('bg-upload').addEventListener('change', function(e) {
-        const file = e.target.files[0];
         const reader = new FileReader();
-        reader.onload = f => {
-            fabric.Image.fromURL(f.target.result, img => {
-                img.scaleToWidth(700);
-                img.set({ left: 50, top: 80, selectable: false, evented: false, id: 'x-ray' });
-                canvas.add(img); canvas.sendToBack(img);
-                saveState();
-            });
-        };
-        reader.readAsDataURL(file);
+        reader.onload = f => fabric.Image.fromURL(f.target.result, img => {
+            img.scaleToWidth(700); img.set({ left: 50, top: 80, selectable: false, evented: false });
+            canvas.add(img); canvas.sendToBack(img);
+        });
+        reader.readAsDataURL(e.target.files[0]);
     });
 
     function toggleSidePanel() { document.getElementById('side-panel').classList.toggle('closed'); }
-    function deleteSelected() { canvas.remove(...canvas.getActiveObjects()); canvas.discardActiveObject(); saveState(); }
     function autoFillPrice() {
         const found = treatmentData.find(t => t.item === document.getElementById('t-select').value);
         if(found) document.getElementById('t-price').value = found.price;
@@ -323,7 +362,6 @@
         const scaler = document.getElementById('canvas-scaler');
         const originalT = scaler.style.transform;
         scaler.style.transform = "scale(1)";
-        
         html2canvas(document.getElementById('canvas-container'), { scale: 2 }).then(cvs => {
             const a = document.createElement('a');
             a.download = `治療計畫-${document.getElementById('p-name').value || '未命名'}.jpg`;
@@ -332,9 +370,6 @@
             scaler.style.transform = originalT;
         });
     }
-
-    canvas.on('object:modified', saveState);
-    canvas.on('path:created', saveState);
 
     init();
     setMode('select');
