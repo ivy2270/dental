@@ -3,52 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牙科治療計劃</title>
+    <title>牙科治療計劃 V9.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
-        body { font-family: 'PingFang TC', sans-serif; background-color: #2c2e30; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .top-bar { background: #ffffff; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; }
-        .tool-group { display: flex; align-items: center; gap: 5px; border-right: 1px solid #eee; padding-right: 8px; }
-        #main-viewport { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 20px; }
-        #canvas-scaler { transform-origin: top center; transition: transform 0.2s; }
-        #canvas-container { background: white; box-shadow: 0 0 30px rgba(0,0,0,0.5); width: 800px; height: 1131px; position: relative; }
-        .side-panel { position: fixed; right: 0; top: 0; width: 320px; height: 100%; background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.2); z-index: 200; display: flex; flex-direction: column; transition: 0.3s ease; }
+        :root {
+            --primary: #3b7dd8;
+            --primary-light: #e8f0fb;
+            --success: #2e9e6b;
+            --danger: #dc3545;
+            --dark: #343a40;
+            --bg: #dde4ed;
+            --panel-bg: #f7f9fc;
+        }
+        body {
+            font-family: 'PingFang TC', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: #ffffff;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+            z-index: 100;
+            position: relative;
+        }
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border-right: 1px solid #e5e9f0;
+            padding-right: 8px;
+        }
+
+        #main-viewport {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            scrollbar-width: thin;
+            gap: 30px;
+        }
+        .canvas-wrapper {
+            background: white;
+            box-shadow: 0 4px 24px rgba(59,125,216,0.13), 0 1px 4px rgba(0,0,0,0.08);
+            width: 800px;
+            height: 1131px;
+            position: relative;
+            flex-shrink: 0;
+            border: 3px solid transparent;
+            transition: 0.2s;
+            border-radius: 2px;
+        }
+        .canvas-wrapper.active-page {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59,125,216,0.25), 0 4px 24px rgba(59,125,216,0.2);
+        }
+
+        .side-panel {
+            position: fixed;
+            right: 0;
+            top: 57px;
+            width: 320px;
+            height: calc(100% - 57px);
+            background: var(--panel-bg);
+            box-shadow: -3px 0 12px rgba(59,125,216,0.1);
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+            transition: 0.3s ease;
+        }
         .side-panel.closed { transform: translateX(320px); }
-        .panel-toggle { position: absolute; left: -45px; top: 120px; width: 45px; height: 60px; background: var(--primary); color: white; border-radius: 10px 0 0 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .panel-toggle {
+            position: absolute;
+            left: -44px;
+            top: 20px;
+            width: 44px;
+            height: 58px;
+            background: var(--primary);
+            color: white;
+            border-radius: 10px 0 0 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: -3px 2px 8px rgba(59,125,216,0.25);
+        }
         .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
-        .btn { padding: 8px 12px; cursor: pointer; border: 1px solid #ddd; border-radius: 6px; background: white; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+
+        /* 只保留初始modal和關閉提醒用 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(30,40,60,0.65);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-box {
+            background: white;
+            padding: 28px;
+            border-radius: 14px;
+            width: 360px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+        }
+
+        .btn {
+            padding: 7px 12px;
+            cursor: pointer;
+            border: 1px solid #d0d8e8;
+            border-radius: 6px;
+            background: white;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .btn:hover { background: #f0f4fb; }
         .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover { background: #2f6cc4; }
         .btn-success { background: var(--success); color: white; border-color: var(--success); }
-        .btn-danger { background: #fff; color: var(--danger); border-color: var(--danger); }
-        .active { background: #e0f0ff; border-color: var(--primary); color: var(--primary); }
-        input, select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 8px; font-size: 13px; }
-        label { font-size: 12px; font-weight: bold; color: #666; display: block; margin-bottom: 2px; }
-        .phase-block { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; background: #fafafa; }
-        .item-row { background: white; padding: 6px 10px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        #status-tag { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 3px 10px; border-radius: 15px; font-size: 11px; z-index: 1000; }
+        .btn-success:hover { background: #257d55; }
+        .btn-danger { background: #fff; color: var(--danger); border-color: #f5c2c7; }
+        .btn-danger:hover { background: #fff5f5; }
+        .btn-sm { padding: 4px 8px; font-size: 12px; }
+        .active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+        input, select {
+            padding: 7px 9px;
+            border: 1px solid #d0d8e8;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 8px;
+            font-size: 13px;
+            background: white;
+            font-family: inherit;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,125,216,0.15); }
+        label { font-size: 11px; font-weight: bold; color: #7a8aa0; display: block; margin-bottom: 3px; letter-spacing: 0.3px; }
+
+        .phase-block {
+            border: 1px solid #e0e8f4;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background: white;
+        }
+
+        /* inline 新增階段區塊 */
+        .add-phase-inline {
+            display: none;
+            background: #f0f6ff;
+            border: 1px solid #bdd0f0;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .add-phase-inline.visible { display: block; }
+        .add-phase-inline input { margin-bottom: 6px; }
+        .add-phase-inline .inline-btns { display: flex; gap: 6px; }
+
+        /* inline 自訂醫師輸入 */
+        .custom-doc-inline {
+            display: none;
+            margin-top: 4px;
+        }
+        .custom-doc-inline.visible { display: flex; gap: 4px; }
+        .custom-doc-inline input { margin-bottom: 0; }
+
+        .item-row {
+            background: #fafbff;
+            padding: 5px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            border: 1px solid #e8edf5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        /* phase 在 phase-list-ui 裡的頁面標籤 */
+        .phase-page-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        #status-tag {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(30,40,60,0.75);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .zoom-info {
+            position: fixed;
+            bottom: 10px;
+            right: 340px;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(59,125,216,0.15);
+            z-index: 1000;
+            color: var(--primary);
+        }
+
+        hr.divider { border: 0; border-top: 1px solid #e8edf5; margin: 12px 0; }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #7a8aa0;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status-tag">系統初始化中...</div>
+    <div id="status-tag">選取頁面後插入物件 | CTRL+滾輪縮放</div>
+    <div class="zoom-info">縮放: <span id="zoom-val">100</span>%</div>
+
+    <!-- 初始 modal：只在開始時使用 -->
+    <div id="patient-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-top:0; color:#1e2840;">建立新治療計劃</h3>
+            <label>病人姓名</label>
+            <input type="text" id="m-p-name" placeholder="姓名">
+            <label>病歷號碼</label>
+            <input type="text" id="m-p-id" placeholder="ID">
+            <label>出生年月日</label>
+            <input type="text" id="m-p-bday" placeholder="46.01.01">
+            <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;" onclick="closeModal()">開始繪製計畫</button>
+        </div>
+    </div>
 
     <div class="top-bar">
         <div class="tool-group">
-            <input type="text" id="p-name" placeholder="病人" style="width:80px; margin:0;">
-            <select id="doc-select" style="width:130px; margin:0;" onchange="handleDocChange()">
-                <option value="">載入中...</option>
+            <button class="btn btn-primary" onclick="addNewPage()" title="新增分頁"><i class="fa-solid fa-file-circle-plus"></i> 新增頁面</button>
+            <span id="page-count-info" style="font-size: 13px; font-weight: bold; margin-left: 5px; color: #7a8aa0;">共 1 頁</span>
+        </div>
+        <div class="tool-group">
+            <select id="doc-select" style="width:140px; margin:0;" onchange="handleDocChange()">
+                <option value="">載入醫師中...</option>
             </select>
-            <button class="btn btn-primary" onclick="updateHeaderFooter()">確認</button>
+            <!-- inline 自訂醫師輸入 -->
+            <div class="custom-doc-inline" id="custom-doc-inline">
+                <input type="text" id="custom-doc-input" placeholder="醫師姓名" style="width:110px; margin:0;">
+                <button class="btn btn-primary btn-sm" onclick="confirmCustomDoc()">確認</button>
+                <button class="btn btn-sm" onclick="cancelCustomDoc()">✕</button>
+            </div>
+            <button class="btn" onclick="undo()" title="復原上一動作"><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="btn btn-danger" onclick="deleteSelected()"><i class="fa-solid fa-trash-can"></i></button>
         </div>
         <div class="tool-group">
-            <button class="btn" onclick="undo()" title="上一步"><i class="fa-solid fa-rotate-left"></i></button>
-            <button class="btn btn-danger" onclick="deleteSelected()" title="刪除選取項目"><i class="fa-solid fa-trash-can"></i></button>
-        </div>
-        <div class="tool-group">
-            <label for="bg-upload" class="btn" style="display:inline-flex; margin:0;"><i class="fa-solid fa-x-ray"></i> X光</label>
+            <label for="bg-upload" class="btn" style="margin:0;"><i class="fa-solid fa-x-ray"></i> 插入 X 光</label>
             <input type="file" id="bg-upload" hidden accept="image/*">
             <button class="btn" onclick="addPureText()"><i class="fa-solid fa-font"></i> 文字</button>
             <button class="btn" onclick="addImplantStamp()"><i class="fa-solid fa-tooth"></i> 植體</button>
@@ -58,36 +296,52 @@
             <button class="btn tool-btn" data-mode="brush" onclick="setMode('brush')"><i class="fa-solid fa-paintbrush"></i></button>
             <button class="btn tool-btn" data-mode="highlighter" onclick="setMode('highlighter')"><i class="fa-solid fa-highlighter"></i></button>
         </div>
-        <button class="btn btn-success" style="margin-left:auto" onclick="saveAsJPG()"><i class="fa-solid fa-file-export"></i> 輸出 A4</button>
+        <button class="btn btn-success" style="margin-left:auto" onclick="saveAllPagesAsJPG()"><i class="fa-solid fa-file-export"></i> 輸出全部分頁 (JPG)</button>
     </div>
 
-    <div id="main-viewport">
-        <div id="canvas-scaler">
-            <div id="canvas-container">
-                <canvas id="c"></canvas>
-            </div>
-        </div>
-    </div>
+    <div id="main-viewport"></div>
 
     <div class="side-panel" id="side-panel">
         <div class="panel-toggle" onclick="toggleSidePanel()"><i class="fa-solid fa-list-check"></i></div>
         <div class="panel-content">
-            <h4 style="margin:0 0 10px 0">📋 治療階段管理</h4>
-            
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #e9ecef; padding: 10px; border-radius: 6px;">
-                <input type="checkbox" id="show-total-toggle" checked onchange="renderAllTables()" style="width:auto; margin:0;">
-                <label for="show-total-toggle" style="margin:0; cursor:pointer;">顯示各階段總額</label>
+            <h4 style="margin:0 0 12px 0; color:#1e2840;">📋 治療流程管理</h4>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; background: #f0f4fb; padding: 8px; border-radius: 6px;">
+                <input type="checkbox" id="show-total-toggle" checked onchange="renderAllTables()" style="width:auto; margin:0; accent-color: var(--primary);">
+                <label for="show-total-toggle" style="margin:0; cursor:pointer; color:#3b5070;">顯示各階段小計</label>
             </div>
 
             <div class="phase-block">
-                <label>1. 選擇/建立階段</label>
-                <div style="display:flex; gap:5px;">
-                    <select id="phase-selector" style="flex:1" onchange="switchPhase()"></select>
-                    <button class="btn" onclick="addNewPhase()" title="新增階段"><i class="fa-solid fa-plus"></i></button>
+                <div class="section-title">階段管理</div>
+
+                <!-- inline 新增階段輸入框（預設隱藏） -->
+                <div class="add-phase-inline" id="add-phase-inline">
+                    <label>新階段名稱</label>
+                    <input type="text" id="new-phase-name-input" placeholder="如：第二階段、維護期...">
+                    <div class="inline-btns">
+                        <button class="btn btn-primary btn-sm" style="flex:1; justify-content:center;" onclick="confirmAddPhase()"><i class="fa-solid fa-check"></i> 確認新增</button>
+                        <button class="btn btn-sm" onclick="cancelAddPhase()">取消</button>
+                    </div>
                 </div>
-                <hr>
-                <label>2. 新增治療項目</label>
-                <input type="text" id="t-pos" placeholder="牙位">
+
+                <div style="display:flex; gap:5px; margin-bottom:8px;">
+                    <select id="phase-selector" style="flex:1; margin:0;" onchange="switchPhase()"></select>
+                    <button class="btn btn-primary btn-sm" onclick="showAddPhaseInline()" title="新增階段"><i class="fa-solid fa-plus"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="removeCurrentPhase()" title="刪除此階段"><i class="fa-solid fa-trash"></i></button>
+                </div>
+
+                <label>階段名稱</label>
+                <input type="text" id="edit-phase-name" placeholder="點此修改階段名稱" oninput="renamePhase()">
+
+                <label>顯示於頁面</label>
+                <select id="phase-page-selector" style="margin-bottom:8px;" onchange="changePhasePageIndex()">
+                    <option value="0">第 1 頁</option>
+                </select>
+
+                <hr class="divider">
+
+                <div class="section-title">快速加入項目</div>
+                <input type="text" id="t-pos" placeholder="牙位 (如: 18, 26...)">
                 <select id="t-select" onchange="autoFillPrice()"></select>
                 <div style="display:flex; gap:5px;">
                     <div style="flex:1">
@@ -95,12 +349,12 @@
                         <input type="number" id="t-price">
                     </div>
                     <div style="flex:1">
-                        <label>顆數</label>
+                        <label>數量</label>
                         <input type="number" id="t-count" value="1">
                     </div>
                 </div>
-                <input type="text" id="t-note" placeholder="備註">
-                <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="addToPlan()">＋加入目前階段</button>
+                <input type="text" id="t-note" placeholder="備註內容">
+                <button class="btn btn-primary" style="width:100%; justify-content:center; padding:9px;" onclick="addToPlan()"><i class="fa-solid fa-plus"></i> 加入治療清單</button>
             </div>
 
             <div id="phase-list-ui"></div>
@@ -108,271 +362,407 @@
     </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwqkgcZJzA1YdDUJJZYlGaxyivHFa1XVxVI-eE9ls-B8u7AP-MKCZ9I0BpjIZ0IUkCkzQ/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwqkgcZJzA1YdDUJJZYlGaxyivHFa1XVxVI-eE9ls-B8u7AP-MKCZ9I0BpjIZ0IUkCkzQ/exec";
     const IMPLANT_URL = "https://rainchord.s3.ap-east-2.amazonaws.com/inventory/1774288032004_implant.svg";
     const A4_W = 800, A4_H = 1131;
-    
-    let phases = [{ id: Date.now(), name: "第一階段", items: [] }];
+
+    let patientData = { name: "", id: "", bday: "" };
+    // 每個 phase 多了 pageIndex 屬性，表示要渲染在第幾頁（0-based）
+    let phases = [{ id: Date.now(), name: "第一階段", items: [], pageIndex: 0 }];
     let currentPhaseId = phases[0].id;
     let treatmentData = [];
-    let history = [];
-    
-    const canvas = new fabric.Canvas('c', { width: A4_W, height: A4_H, backgroundColor: '#fff', preserveObjectStacking: true });
+    let currentZoom = 1;
 
-    function handleResize() {
-        const scale = (document.getElementById('main-viewport').clientWidth - 40) / A4_W;
-        document.getElementById('canvas-scaler').style.transform = `scale(${scale < 1 ? scale : 1})`;
-    }
-    window.addEventListener('resize', handleResize);
-    setTimeout(handleResize, 500);
+    let canvases = [];
+    let activeCanvas = null;
+    let undoStacks = [];
 
     async function init() {
+        addNewPage();
         try {
             const resp = await fetch(GAS_URL);
             const json = await resp.json();
             treatmentData = json.data.treatments;
-            
-            // 治療項目初始化
-            document.getElementById('t-select').innerHTML = '<option value="">請選擇項目...</option>' + 
+            document.getElementById('t-select').innerHTML = '<option value="">選擇項目...</option>' +
                 treatmentData.map(t => `<option value="${t.item}">${t.category}|${t.item}</option>`).join('');
-            
-            // 醫師選單初始化：增加「手動輸入」選項
-            const docOptions = json.data.doctors.map(d => `<option value="${d.name}">${d.name} ${d.title}</option>`).join('');
-            document.getElementById('doc-select').innerHTML = docOptions + `<option value="CUSTOM_ENTRY" style="color:blue; font-weight:bold;">➜ 手動輸入其他醫師...</option>`;
-            
+            const docOptions = json.data.doctors.map(d => `<option value="${d.name} ${d.title}">${d.name} ${d.title}</option>`).join('');
+            document.getElementById('doc-select').innerHTML = docOptions + `<option value="CUSTOM">➜ 手動輸入...</option>`;
             updatePhaseUI();
-            saveState();
-            document.getElementById('status-tag').innerText = "✅ 同步完成";
-        } catch (e) { document.getElementById('status-tag').innerText = "❌ 同步失敗"; }
+        } catch (e) { console.error(e); }
+        window.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); handleCanvasZoom(e); } }, { passive: false });
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = '治療計劃尚未儲存，確定要離開嗎？請確認已輸出所有分頁。';
+        });
     }
 
-    // --- 醫師選單邏輯優化 ---
-    function handleDocChange() {
-        const select = document.getElementById('doc-select');
-        if (select.value === "CUSTOM_ENTRY") {
-            const customName = prompt("請輸入醫師姓名:");
-            if (customName && customName.trim() !== "") {
-                // 建立一個新的選項並加到選單最前面 (或自訂醫師區)
-                const newOpt = document.createElement('option');
-                newOpt.value = customName;
-                newOpt.text = `${customName}`;
-                newOpt.selected = true;
-                select.add(newOpt, select.options[0]);
-                updateHeaderFooter(); // 自動更新畫布
-            } else {
-                select.value = ""; // 如果取消，回到空值
-            }
-        } else {
-            updateHeaderFooter(); // 一般選擇則直接更新畫布
+    function handleCanvasZoom(e) {
+        const delta = e.deltaY;
+        currentZoom *= 0.999 ** delta;
+        currentZoom = Math.min(Math.max(currentZoom, 0.2), 5);
+        document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100);
+        canvases.forEach(c => {
+            c.setZoom(currentZoom);
+            c.setWidth(A4_W * currentZoom);
+            c.setHeight(A4_H * currentZoom);
+        });
+    }
+
+    function addNewPage() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'canvas-wrapper';
+        const canvasId = 'c-' + Date.now();
+        wrapper.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+        document.getElementById('main-viewport').appendChild(wrapper);
+
+        const newCanvas = new fabric.Canvas(canvasId, {
+            width: A4_W * currentZoom,
+            height: A4_H * currentZoom,
+            backgroundColor: '#fff',
+            preserveObjectStacking: true
+        });
+
+        newCanvas.setZoom(currentZoom);
+        canvases.push(newCanvas);
+        undoStacks.push([]);
+
+        setActivePage(newCanvas, wrapper);
+
+        newCanvas.on('mouse:down', () => setActivePage(newCanvas, wrapper));
+        newCanvas.on('object:added', () => saveHistory(newCanvas));
+        newCanvas.on('object:modified', () => saveHistory(newCanvas));
+
+        updateHeaderFooter();
+        const pageCount = canvases.length;
+        document.getElementById('page-count-info').innerText = `共 ${pageCount} 頁`;
+
+        // 新增頁面後，更新 phase-page-selector 的選項
+        updatePhasePageSelector();
+    }
+
+    function setActivePage(canvas, wrapper) {
+        activeCanvas = canvas;
+        document.querySelectorAll('.canvas-wrapper').forEach(w => w.classList.remove('active-page'));
+        wrapper.classList.add('active-page');
+        // 更新頁面選擇器顯示
+        updatePhasePageSelector();
+    }
+
+    function getActivePageIndex() {
+        return canvases.indexOf(activeCanvas);
+    }
+
+    // 更新「顯示於頁面」下拉選單，選項同步頁數
+    function updatePhasePageSelector() {
+        const sel = document.getElementById('phase-page-selector');
+        const phase = phases.find(p => p.id === currentPhaseId);
+        sel.innerHTML = canvases.map((_, i) => `<option value="${i}" ${phase && phase.pageIndex === i ? 'selected' : ''}>第 ${i + 1} 頁</option>`).join('');
+    }
+
+    // 使用者手動改變 phase 的顯示頁面
+    function changePhasePageIndex() {
+        const phase = phases.find(p => p.id === currentPhaseId);
+        if (phase) {
+            phase.pageIndex = parseInt(document.getElementById('phase-page-selector').value);
+            renderAllTables();
+            updatePhaseUI(false);
         }
     }
 
-    // --- 歷史紀錄與畫布功能 ---
-    function saveState() {
-        const json = JSON.stringify(canvas.toObject(['id', 'selectable', 'evented']));
-        if (history.length > 0 && history[history.length - 1] === json) return;
-        history.push(json);
-        if (history.length > 30) history.shift();
+    document.getElementById('bg-upload').addEventListener('change', function(e) {
+        if (!e.target.files[0] || !activeCanvas) return;
+        const reader = new FileReader();
+        reader.onload = function(f) {
+            fabric.Image.fromURL(f.target.result, (img) => {
+                img.scaleToWidth(A4_W * 0.8);
+                img.set({ left: 40, top: 150, selectable: true });
+                activeCanvas.add(img);
+                activeCanvas.setActiveObject(img);
+                activeCanvas.renderAll();
+            });
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    });
+
+    function saveHistory(targetCanvas) {
+        const idx = canvases.indexOf(targetCanvas);
+        const json = JSON.stringify(targetCanvas.toObject(['id', 'selectable', 'evented']));
+        if (undoStacks[idx][undoStacks[idx].length - 1] !== json) {
+            undoStacks[idx].push(json);
+            if (undoStacks[idx].length > 20) undoStacks[idx].shift();
+        }
     }
 
     function undo() {
-        if (history.length <= 1) return;
-        history.pop();
-        canvas.loadFromJSON(history[history.length - 1], () => canvas.renderAll());
-    }
-
-    function deleteSelected() {
-        const activeObjects = canvas.getActiveObjects();
-        if (activeObjects.length > 0) {
-            canvas.remove(...activeObjects);
-            canvas.discardActiveObject();
-            saveState();
+        const idx = canvases.indexOf(activeCanvas);
+        if (undoStacks[idx].length > 1) {
+            undoStacks[idx].pop();
+            activeCanvas.loadFromJSON(undoStacks[idx][undoStacks[idx].length - 1], () => {
+                activeCanvas.renderAll();
+                updateHeaderFooter();
+                renderAllTables();
+            });
         }
     }
 
-    window.addEventListener('keydown', (e) => {
-        if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) deleteSelected();
-    });
+    // --- 表格渲染核心：按 pageIndex 分頁渲染，各頁只渲染屬於自己的 phases ---
+    function renderAllTables() {
+        if (canvases.length === 0) return;
 
-    canvas.on('object:modified', saveState);
-    canvas.on('object:added', (e) => { if (!e.target.id || !e.target.id.toString().startsWith('table-')) saveState(); });
+        const showTotal = document.getElementById('show-total-toggle').checked;
+        const colW = [60, 260, 60, 90, 230], rowH = 30;
 
-    // --- 階段與項目管理 ---
-    function addNewPhase() {
-        const name = prompt("請輸入階段名稱:", `第 ${phases.length + 1} 階段`);
-        if (!name) return;
-        const newPhase = { id: Date.now(), name: name, items: [] };
-        phases.push(newPhase);
-        currentPhaseId = newPhase.id;
+        // 每頁分別處理
+        canvases.forEach((canvas, pageIdx) => {
+            // 清除該頁所有舊表格（id 以 'table-' 開頭）
+            const oldTables = canvas.getObjects().filter(o => o.id && o.id.toString().startsWith('table-'));
+            oldTables.forEach(o => canvas.remove(o));
+
+            // 找出屬於這頁的 phases（有項目的才渲染）
+            const pagePhasesWithItems = phases.filter(p => p.pageIndex === pageIdx && p.items.length > 0);
+            if (pagePhasesWithItems.length === 0) {
+                canvas.renderAll();
+                return;
+            }
+
+            // 起始 Y：第一頁從 650 開始（預留 header/X光空間），其他頁從 80 開始
+            let startY = (pageIdx === 0) ? 650 : 80;
+
+            pagePhasesWithItems.forEach((phase) => {
+                let elements = [];
+                let curY = 0;
+
+                // 標題
+                elements.push(new fabric.Text(phase.name, { left: 0, top: -25, fontSize: 18, fontWeight: 'bold', fill: '#3b7dd8' }));
+
+                // 表頭
+                const headers = ["牙位", "治療項目", "顆數", "單價", "備註"];
+                let curX = 0;
+                headers.forEach((h, i) => {
+                    elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#eef3fb', stroke: '#c8d8f0' }));
+                    elements.push(new fabric.Text(h, { left: curX + 5, top: curY + 7, fontSize: 14, fontWeight: 'bold', fill: '#3b5070' }));
+                    curX += colW[i];
+                });
+
+                // 內容
+                let phaseTotal = 0;
+                phase.items.forEach(it => {
+                    curY += rowH; curX = 0;
+                    phaseTotal += (it.price * it.count);
+                    const rowData = [it.pos, it.item, it.count, it.price.toLocaleString(), it.note];
+                    rowData.forEach((d, i) => {
+                        elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#fff', stroke: '#dde6f5' }));
+                        elements.push(new fabric.Text(String(d), { left: curX + 5, top: curY + 7, fontSize: 13, fill: '#2a3a50' }));
+                        curX += colW[i];
+                    });
+                });
+
+                // 小計
+                if (showTotal) {
+                    curY += rowH;
+                    elements.push(new fabric.Rect({ left: 0, top: curY, width: 700, height: rowH + 5, fill: '#fff9e6', stroke: '#f0dfa0' }));
+                    elements.push(new fabric.Text(`階段小計：NT$ ${phaseTotal.toLocaleString()}`, { left: 480, top: curY + 7, fontSize: 15, fontWeight: 'bold', fill: '#c04000' }));
+                }
+
+                const tableGroup = new fabric.Group(elements, {
+                    id: 'table-' + phase.id,
+                    left: 50,
+                    top: startY,
+                    selectable: true
+                });
+
+                canvas.add(tableGroup);
+                startY += (tableGroup.height + 40);
+            });
+
+            canvas.renderAll();
+        });
+    }
+
+    function closeModal() {
+        patientData = {
+            name: document.getElementById('m-p-name').value || "未命名",
+            id: document.getElementById('m-p-id').value || "0000",
+            bday: document.getElementById('m-p-bday').value || "19000101"
+        };
+        document.getElementById('patient-modal').style.display = 'none';
+        updateHeaderFooter();
+    }
+
+    function updateHeaderFooter() {
+        canvases.forEach(c => {
+            c.getObjects().filter(o => o.id === 'label-name' || o.id === 'label-doc').forEach(o => c.remove(o));
+            c.add(new fabric.Text(`姓名：${patientData.name}  病歷號：${patientData.id}  生日：${patientData.bday}`, { left: 50, top: 30, fontSize: 18, fontWeight: 'bold', id: 'label-name', selectable: false, fill: '#1e2840' }));
+            const doc = document.getElementById('doc-select').value;
+            if (doc && doc !== "CUSTOM") c.add(new fabric.Text(`主治醫師：${doc}`, { left: 520, top: 1085, fontSize: 16, id: 'label-doc', selectable: false, fill: '#3b5070' }));
+            c.renderAll();
+        });
+    }
+
+    // --- inline 自訂醫師（不使用 prompt）---
+    function handleDocChange() {
+        if (document.getElementById('doc-select').value === "CUSTOM") {
+            document.getElementById('custom-doc-inline').classList.add('visible');
+            document.getElementById('custom-doc-input').focus();
+        } else {
+            document.getElementById('custom-doc-inline').classList.remove('visible');
+            updateHeaderFooter();
+        }
+    }
+    function confirmCustomDoc() {
+        const val = document.getElementById('custom-doc-input').value.trim();
+        if (val) {
+            const opt = new Option(val, val, true, true);
+            const sel = document.getElementById('doc-select');
+            // 插到 CUSTOM 選項之前
+            sel.insertBefore(opt, sel.querySelector('option[value="CUSTOM"]'));
+            sel.value = val;
+        }
+        document.getElementById('custom-doc-inline').classList.remove('visible');
+        document.getElementById('custom-doc-input').value = '';
+        updateHeaderFooter();
+    }
+    function cancelCustomDoc() {
+        document.getElementById('custom-doc-inline').classList.remove('visible');
+        document.getElementById('custom-doc-input').value = '';
+        // 還原選單到第一個非CUSTOM選項
+        const sel = document.getElementById('doc-select');
+        if (sel.options.length > 1) sel.selectedIndex = 0;
+        updateHeaderFooter();
+    }
+
+    function setMode(mode) {
+        canvases.forEach(c => {
+            c.isDrawingMode = (mode !== 'select');
+            if (c.isDrawingMode) {
+                c.freeDrawingBrush = new fabric.PencilBrush(c);
+                c.freeDrawingBrush.width = (mode === 'highlighter') ? 25 : 4;
+                c.freeDrawingBrush.color = (mode === 'highlighter') ? 'rgba(255,200,0,0.4)' : '#3b7dd8';
+            }
+        });
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    }
+
+    function addPureText() { if (activeCanvas) activeCanvas.add(new fabric.IText('輸入文字', { left: 100, top: 100, fontSize: 20, backgroundColor: '#ffff99' })); }
+    function addImplantStamp() { if (activeCanvas) fabric.loadSVGFromURL(IMPLANT_URL, (objs, opts) => { const g = fabric.util.groupSVGElements(objs, opts); g.set({ left: 300, top: 300 }).scaleToWidth(50); activeCanvas.add(g); }, null, { crossOrigin: 'anonymous' }); }
+    function autoFillPrice() { const item = treatmentData.find(t => t.item === document.getElementById('t-select').value); if (item) document.getElementById('t-price').value = item.price; }
+    function deleteSelected() { if (activeCanvas) { activeCanvas.remove(...activeCanvas.getActiveObjects()); activeCanvas.discardActiveObject(); } }
+    function toggleSidePanel() { document.getElementById('side-panel').classList.toggle('closed'); }
+
+    // --- inline 新增階段（不使用 prompt）---
+    function showAddPhaseInline() {
+        const el = document.getElementById('add-phase-inline');
+        el.classList.add('visible');
+        document.getElementById('new-phase-name-input').value = `第 ${phases.length + 1} 階段`;
+        document.getElementById('new-phase-name-input').focus();
+        document.getElementById('new-phase-name-input').select();
+    }
+    function confirmAddPhase() {
+        const nameInput = document.getElementById('new-phase-name-input');
+        const name = nameInput.value.trim() || `第 ${phases.length + 1} 階段`;
+        const newPageIndex = getActivePageIndex(); // 預設綁定當前 active page
+        phases.push({ id: Date.now(), name, items: [], pageIndex: newPageIndex });
+        currentPhaseId = phases[phases.length - 1].id;
+        document.getElementById('add-phase-inline').classList.remove('visible');
+        nameInput.value = '';
         updatePhaseUI();
         renderAllTables();
     }
+    function cancelAddPhase() {
+        document.getElementById('add-phase-inline').classList.remove('visible');
+        document.getElementById('new-phase-name-input').value = '';
+    }
+    // Enter 鍵確認新增
+    document.getElementById('new-phase-name-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmAddPhase();
+        if (e.key === 'Escape') cancelAddPhase();
+    });
 
+    function removeCurrentPhase() {
+        if (phases.length <= 1) {
+            // 用 status tag 提示，不用 alert
+            showStatus('至少需保留一個治療階段', 2500);
+            return;
+        }
+        // 用 inline 確認取代 confirm()：直接做，配合 undo 復原
+        const name = phases.find(p => p.id === currentPhaseId)?.name;
+        phases = phases.filter(p => p.id !== currentPhaseId);
+        currentPhaseId = phases[0].id;
+        updatePhaseUI();
+        renderAllTables();
+        showStatus(`已刪除「${name}」`, 2000);
+    }
+
+    function showStatus(msg, duration = 2000) {
+        const tag = document.getElementById('status-tag');
+        const original = tag.innerText;
+        tag.innerText = msg;
+        tag.style.background = 'rgba(59,125,216,0.85)';
+        setTimeout(() => { tag.innerText = original; tag.style.background = ''; }, duration);
+    }
+
+    function renamePhase() {
+        const phase = phases.find(p => p.id === currentPhaseId);
+        if (phase) { phase.name = document.getElementById('edit-phase-name').value || "未命名"; updatePhaseUI(false); renderAllTables(); }
+    }
     function switchPhase() {
         currentPhaseId = parseInt(document.getElementById('phase-selector').value);
         updatePhaseUI();
     }
+    function updatePhaseUI(reset = true) {
+        const sel = document.getElementById('phase-selector');
+        sel.innerHTML = phases.map(p => `<option value="${p.id}" ${p.id === currentPhaseId ? 'selected' : ''}>${p.name}</option>`).join('');
+        const currentPhase = phases.find(p => p.id === currentPhaseId);
+        if (reset && currentPhase) document.getElementById('edit-phase-name').value = currentPhase.name;
 
-    function updatePhaseUI() {
-        const selector = document.getElementById('phase-selector');
-        selector.innerHTML = phases.map(p => `<option value="${p.id}" ${p.id === currentPhaseId ? 'selected':''}>${p.name}</option>`).join('');
-        const listUI = document.getElementById('phase-list-ui');
-        listUI.innerHTML = phases.map(p => `
-            <div style="margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <b style="font-size:14px; color:var(--primary)">${p.name}</b>
-                    <button class="btn" style="padding:2px 5px; font-size:10px;" onclick="removePhase(${p.id})">刪除</button>
+        // 更新頁面選擇器
+        updatePhasePageSelector();
+
+        // phase 清單
+        document.getElementById('phase-list-ui').innerHTML = phases.map(p => `
+            <div style="margin-bottom:10px; border:1px solid ${p.id === currentPhaseId ? '#c0d4f5' : '#e8edf5'}; border-radius:6px; padding:8px; background:${p.id === currentPhaseId ? '#f0f6ff' : '#fff'}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <b style="font-size:13px; color:var(--primary)">${p.name}</b>
+                    <span class="phase-page-badge">P${p.pageIndex + 1}</span>
+                    <span style="font-size:10px; color:#9aacbc">${p.items.length} 項目</span>
                 </div>
-                ${p.items.map(it => `
-                    <div class="item-row">
-                        <span>${it.pos} ${it.item} x${it.count}</span>
-                        <button style="border:none; background:none; color:red; cursor:pointer;" onclick="removeItem(${p.id}, ${it.id})">×</button>
-                    </div>
-                `).join('')}
-            </div>
-        `).join('');
-    }
-
-    function removePhase(id) {
-        if (phases.length <= 1) return;
-        phases = phases.filter(p => p.id !== id);
-        if (currentPhaseId === id) currentPhaseId = phases[0].id;
-        updatePhaseUI();
-        renderAllTables();
+                ${p.items.map(it => `<div class="item-row"><span style="flex:1"><b style="color:#3b5070">${it.pos}</b> ${it.item}</span><button style="border:none; background:none; color:#dc3545; cursor:pointer; padding:0;" onclick="removeItem(${p.id}, ${it.id})"><i class="fa-solid fa-circle-xmark"></i></button></div>`).join('')}
+            </div>`).join('');
     }
 
     function addToPlan() {
-        const item = document.getElementById('t-select').value;
-        const count = parseInt(document.getElementById('t-count').value) || 1;
-        if(!item) return;
-        const phase = phases.find(p => p.id === currentPhaseId);
-        phase.items.push({
+        const item = document.getElementById('t-select').value; if (!item) return;
+        phases.find(p => p.id === currentPhaseId).items.push({
             id: Date.now(),
-            pos: document.getElementById('t-pos').value,
-            item: item,
+            pos: document.getElementById('t-pos').value || '-',
+            item,
             price: parseInt(document.getElementById('t-price').value) || 0,
-            count: count,
+            count: parseInt(document.getElementById('t-count').value) || 1,
             note: document.getElementById('t-note').value
         });
-        updatePhaseUI();
-        renderAllTables();
+        updatePhaseUI(); renderAllTables();
     }
-
     function removeItem(pId, itId) {
-        const phase = phases.find(p => p.id === pId);
-        phase.items = phase.items.filter(it => it.id !== itId);
-        updatePhaseUI();
-        renderAllTables();
+        phases.find(p => p.id === pId).items = phases.find(p => p.id === pId).items.filter(it => it.id !== itId);
+        updatePhaseUI(); renderAllTables();
     }
 
-    function renderAllTables() {
-        canvas.getObjects().filter(o => o.id && o.id.toString().startsWith('table-')).forEach(o => canvas.remove(o));
-        const showTotal = document.getElementById('show-total-toggle').checked;
-        let startY = 700; 
-        const colW = [60, 260, 60, 90, 230], rowH = 30;
-
-        phases.forEach((phase) => {
-            if (phase.items.length === 0) return;
-            let elements = [];
-            let curY = 0;
-            elements.push(new fabric.Text(phase.name, { left: 0, top: curY - 25, fontSize: 18, fontWeight: 'bold', fill: '#007bff' }));
-            const headers = ["牙位", "治療項目", "顆數", "單價", "備註"];
-            let curX = 0;
-            headers.forEach((h, i) => {
-                elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#f2f2f2', stroke: '#ccc' }));
-                elements.push(new fabric.Text(h, { left: curX + 5, top: curY + 7, fontSize: 14, fontWeight: 'bold' }));
-                curX += colW[i];
-            });
-            let phaseTotal = 0;
-            phase.items.forEach(it => {
-                curY += rowH; curX = 0;
-                phaseTotal += (it.price * it.count);
-                const rowData = [it.pos, it.item, it.count, it.price.toLocaleString(), it.note];
-                rowData.forEach((d, i) => {
-                    elements.push(new fabric.Rect({ left: curX, top: curY, width: colW[i], height: rowH, fill: '#fff', stroke: '#ccc' }));
-                    elements.push(new fabric.Text(String(d), { left: curX + 5, top: curY + 7, fontSize: 13 }));
-                    curX += colW[i];
-                });
-            });
-            if (showTotal) {
-                curY += rowH;
-                elements.push(new fabric.Rect({ left: 0, top: curY, width: 700, height: rowH + 5, fill: '#fff9e6', stroke: '#ccc' }));
-                elements.push(new fabric.Text(`階段小計：NT$ ${phaseTotal.toLocaleString()}`, { left: 480, top: curY + 7, fontSize: 15, fontWeight: 'bold', fill: '#d33' }));
-            }
-            const tableGroup = new fabric.Group(elements, { id: 'table-' + phase.id, left: 50, top: startY, selectable: true });
-            canvas.add(tableGroup);
-            startY += (tableGroup.height + 60); 
-        });
-        canvas.renderAll();
-        saveState();
-    }
-
-    // --- 工具功能 ---
-    function addImplantStamp() {
-        fabric.loadSVGFromURL(IMPLANT_URL, (objects, options) => {
-            const implant = fabric.util.groupSVGElements(objects, options);
-            implant.set({ left: 400, top: 300, originX: 'center', originY: 'center' });
-            implant.scaleToWidth(60);
-            canvas.add(implant);
-            canvas.setActiveObject(implant);
-        }, null, { crossOrigin: 'anonymous' });
-    }
-
-    function addPureText() {
-        const t = new fabric.IText('標註文字', { left: 400, top: 300, fontSize: 22, fill: '#ffffff', fontWeight: 'bold', shadow: 'rgba(0,0,0,1) 2px 2px 3px' });
-        canvas.add(t);
-    }
-
-    function setMode(mode) {
-        canvas.isDrawingMode = (mode === 'brush' || mode === 'highlighter');
-        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-        if(canvas.isDrawingMode) {
-            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-            canvas.freeDrawingBrush.width = (mode === 'highlighter') ? 25 : 4;
-            canvas.freeDrawingBrush.color = (mode === 'highlighter') ? 'rgba(255,255,0,0.35)' : '#007bff';
+    async function saveAllPagesAsJPG() {
+        const oriZoom = currentZoom;
+        canvases.forEach(c => { c.setZoom(1); c.setWidth(A4_W); c.setHeight(A4_H); });
+        const wrappers = document.querySelectorAll('.canvas-wrapper');
+        for (let i = 0; i < wrappers.length; i++) {
+            const cvs = await html2canvas(wrappers[i], { scale: 2 });
+            const link = document.createElement('a');
+            link.download = `治療計畫-${patientData.name}-P${i + 1}.jpg`;
+            link.href = cvs.toDataURL('image/jpeg', 0.92);
+            link.click();
+            await new Promise(r => setTimeout(r, 200));
         }
-    }
-
-    function updateHeaderFooter() {
-        const name = document.getElementById('p-name').value;
-        const doc = document.getElementById('doc-select').value;
-        canvas.getObjects().filter(o => o.id === 'label-name' || o.id === 'label-doc').forEach(o => canvas.remove(o));
-        canvas.add(new fabric.Text(`病患姓名：${name}`, { left: 50, top: 30, fontSize: 24, fontWeight: 'bold', id: 'label-name' }));
-        canvas.add(new fabric.Text(`主治醫師：${doc}`, { left: 520, top: 1080, fontSize: 18, id: 'label-doc' }));
-    }
-
-    document.getElementById('bg-upload').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = f => fabric.Image.fromURL(f.target.result, img => {
-            img.scaleToWidth(700); img.set({ left: 50, top: 80, selectable: false, evented: false });
-            canvas.add(img); canvas.sendToBack(img);
-        });
-        reader.readAsDataURL(e.target.files[0]);
-    });
-
-    function toggleSidePanel() { document.getElementById('side-panel').classList.toggle('closed'); }
-    function autoFillPrice() {
-        const found = treatmentData.find(t => t.item === document.getElementById('t-select').value);
-        if(found) document.getElementById('t-price').value = found.price;
-    }
-
-    function saveAsJPG() {
-        canvas.discardActiveObject().renderAll();
-        const scaler = document.getElementById('canvas-scaler');
-        const originalT = scaler.style.transform;
-        scaler.style.transform = "scale(1)";
-        html2canvas(document.getElementById('canvas-container'), { scale: 2 }).then(cvs => {
-            const a = document.createElement('a');
-            a.download = `治療計畫-${document.getElementById('p-name').value || '未命名'}.jpg`;
-            a.href = cvs.toDataURL('image/jpeg', 0.95);
-            a.click();
-            scaler.style.transform = originalT;
-        });
+        canvases.forEach(c => { c.setZoom(oriZoom); c.setWidth(A4_W * oriZoom); c.setHeight(A4_H * oriZoom); });
     }
 
     init();
-    setMode('select');
 </script>
 </body>
 </html>
