@@ -59,13 +59,13 @@
         .canvas-wrapper {
             background: white;
             box-shadow: 0 4px 24px rgba(59,125,216,0.13), 0 1px 4px rgba(0,0,0,0.08);
-            width: 800px;
-            height: 1131px;
             position: relative;
             flex-shrink: 0;
-            border: 3px solid transparent;
-            transition: 0.2s;
+            border: 3px solid #c8d8f0;
+            transition: border-color 0.2s, box-shadow 0.2s;
             border-radius: 2px;
+            overflow: hidden;          /* 剪掉超出 A4 的內容 */
+            box-sizing: content-box;   /* border 不計入尺寸 */
         }
         .canvas-wrapper.active-page {
             border-color: var(--primary);
@@ -234,6 +234,14 @@
             box-shadow: 0 2px 5px rgba(59,125,216,0.15);
             z-index: 1000;
             color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #zoom-slider {
+            width: 110px;
+            accent-color: var(--primary);
+            cursor: pointer;
         }
 
         hr.divider { border: 0; border-top: 1px solid #e8edf5; margin: 12px 0; }
@@ -246,12 +254,62 @@
             text-transform: uppercase;
             margin-bottom: 6px;
         }
+
+        /* ── 平板 RWD ── */
+        @media (max-width: 900px) {
+            .top-bar {
+                padding: 6px 8px;
+                gap: 5px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tool-group { border-right: none; padding-right: 4px; gap: 3px; flex-shrink: 0; }
+            .btn { padding: 8px 9px; font-size: 12px; gap: 2px; }
+            /* 文字標籤在小螢幕隱藏 */
+            .btn-label { display: none; }
+            #page-count-info { display: none; }
+            /* 輸出按鈕縮短 */
+            #export-btn .btn-label { display: none; }
+
+            /* 側邊欄改為底部抽屜 */
+            .side-panel {
+                top: auto;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                width: 100%;
+                height: 55vh;
+                border-radius: 16px 16px 0 0;
+                box-shadow: 0 -4px 20px rgba(59,125,216,0.18);
+                transform: translateY(0);
+            }
+            .side-panel.closed { transform: translateY(100%); }
+            .panel-toggle {
+                left: 50%;
+                transform: translateX(-50%);
+                top: -38px;
+                width: 56px;
+                height: 38px;
+                border-radius: 12px 12px 0 0;
+            }
+            .zoom-info {
+                right: 10px;
+                bottom: auto;
+                top: calc(var(--topbar-h, 57px) + 8px);
+            }
+            #status-tag { display: none; }
+            #main-viewport { padding: 16px 12px 60vh 12px; }
+        }
     </style>
 </head>
 <body>
 
     <div id="status-tag">選取頁面後插入物件 | CTRL+滾輪縮放</div>
-    <div class="zoom-info">縮放: <span id="zoom-val">100</span>%</div>
+    <div class="zoom-info">
+        <input type="range" id="zoom-slider" min="20" max="300" value="100" step="5" style="display:none;" oninput="applyZoomFromSlider(this.value)">
+        縮放: <span id="zoom-val">100</span>%
+    </div>
 
     <!-- 初始 modal：只在開始時使用 -->
     <div id="patient-modal" class="modal-overlay">
@@ -269,7 +327,7 @@
 
     <div class="top-bar">
         <div class="tool-group">
-            <button class="btn btn-primary" onclick="addNewPage()" title="新增分頁"><i class="fa-solid fa-file-circle-plus"></i> 新增頁面</button>
+            <button class="btn btn-primary" onclick="addNewPage()" title="新增分頁"><i class="fa-solid fa-file-circle-plus"></i><span class="btn-label"> 新增頁面</span></button>
             <span id="page-count-info" style="font-size: 13px; font-weight: bold; margin-left: 5px; color: #7a8aa0;">共 1 頁</span>
         </div>
         <div class="tool-group">
@@ -288,15 +346,15 @@
         <div class="tool-group">
             <label for="bg-upload" class="btn" style="margin:0;"><i class="fa-solid fa-x-ray"></i> 插入 X 光</label>
             <input type="file" id="bg-upload" hidden accept="image/*">
-            <button class="btn" onclick="addPureText()"><i class="fa-solid fa-font"></i> 文字</button>
-            <button class="btn" onclick="addImplantStamp()"><i class="fa-solid fa-tooth"></i> 植體</button>
+            <button class="btn" onclick="addPureText()"><i class="fa-solid fa-font"></i><span class="btn-label"> 文字</span></button>
+            <button class="btn" onclick="addImplantStamp()"><i class="fa-solid fa-tooth"></i><span class="btn-label"> 植體</span></button>
         </div>
         <div class="tool-group">
             <button class="btn tool-btn active" data-mode="select" onclick="setMode('select')"><i class="fa-solid fa-mouse-pointer"></i></button>
             <button class="btn tool-btn" data-mode="brush" onclick="setMode('brush')"><i class="fa-solid fa-paintbrush"></i></button>
             <button class="btn tool-btn" data-mode="highlighter" onclick="setMode('highlighter')"><i class="fa-solid fa-highlighter"></i></button>
         </div>
-        <button class="btn btn-success" style="margin-left:auto" onclick="saveAllPagesAsJPG()"><i class="fa-solid fa-file-export"></i> 輸出全部分頁 (JPG)</button>
+        <button id="export-btn" class="btn btn-success" style="margin-left:auto; flex-shrink:0;" onclick="saveAllPagesAsJPG()"><i class="fa-solid fa-file-export"></i><span class="btn-label"> 輸出全部分頁 (JPG)</span></button>
     </div>
 
     <div id="main-viewport"></div>
@@ -376,9 +434,18 @@
     let canvases = [];
     let activeCanvas = null;
     let undoStacks = [];
+    let isUndoing = false;
 
     async function init() {
+        // 平板：側邊欄預設收起，避免遮住畫布
+        const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        if (isTouch) document.getElementById('side-panel').classList.add('closed');
+
+        // 自動計算適合螢幕的初始縮放
+        currentZoom = calcFitZoom();
         addNewPage();
+        // 設定觸控縮放（平板顯示滑桿）
+        setupTouchZoom();
         try {
             const resp = await fetch(GAS_URL);
             const json = await resp.json();
@@ -390,22 +457,58 @@
             updatePhaseUI();
         } catch (e) { console.error(e); }
         window.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); handleCanvasZoom(e); } }, { passive: false });
-        window.addEventListener('beforeunload', (e) => {
+        // 重整、關閉分頁時提醒（beforeunload 覆蓋大多數瀏覽器）
+        const unloadHandler = (e) => {
             e.preventDefault();
             e.returnValue = '治療計劃尚未儲存，確定要離開嗎？請確認已輸出所有分頁。';
+            return e.returnValue;
+        };
+        window.addEventListener('beforeunload', unloadHandler);
+        // pagehide 補強 iOS Safari（它不支援 beforeunload）
+        window.addEventListener('pagehide', unloadHandler);
+    }
+
+    // ── 縮放：正確找到 .canvas-wrapper DOM 節點 ──
+    function getWrapper(fabricCanvas) {
+        // Fabric 結構：.canvas-wrapper > .canvas-container > canvas
+        const container = fabricCanvas.getElement().parentElement; // .canvas-container
+        return container ? container.parentElement : null;          // .canvas-wrapper
+    }
+
+    function applyZoom(zoom) {
+        currentZoom = Math.min(Math.max(zoom, 0.2), 3);
+        document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100);
+        document.getElementById('zoom-slider').value = Math.round(currentZoom * 100);
+        canvases.forEach(c => {
+            const w = Math.round(A4_W * currentZoom);
+            const h = Math.round(A4_H * currentZoom);
+            c.setZoom(currentZoom);
+            c.setWidth(w);
+            c.setHeight(h);
+            // 同步外框 div，避免白色殘留
+            const wrapper = getWrapper(c);
+            if (wrapper) { wrapper.style.width = w + 'px'; wrapper.style.height = h + 'px'; }
         });
     }
 
-    function handleCanvasZoom(e) {
-        const delta = e.deltaY;
-        currentZoom *= 0.999 ** delta;
-        currentZoom = Math.min(Math.max(currentZoom, 0.2), 5);
-        document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100);
-        canvases.forEach(c => {
-            c.setZoom(currentZoom);
-            c.setWidth(A4_W * currentZoom);
-            c.setHeight(A4_H * currentZoom);
-        });
+    function applyZoomFromSlider(val) { applyZoom(val / 100); }
+
+    function handleCanvasZoom(e) { applyZoom(currentZoom * (0.999 ** e.deltaY)); }
+
+    // 計算適合螢幕寬度的初始縮放
+    function calcFitZoom() {
+        const isTablet = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        const panelW = isTablet ? 0 : 320;   // 平板側邊欄預設收起
+        const padW   = isTablet ? 24 : 80;
+        const avail  = window.innerWidth - panelW - padW;
+        return Math.min(Math.max(avail / A4_W, 0.25), 1.5);
+    }
+
+    function setupTouchZoom() {
+        const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        if (!isTouch) return;
+        // 平板：顯示縮放滑桿，其餘全交給 Fabric 原生 + 瀏覽器原生捲動
+        document.getElementById('zoom-slider').style.display = '';
     }
 
     function addNewPage() {
@@ -415,12 +518,18 @@
         wrapper.innerHTML = `<canvas id="${canvasId}"></canvas>`;
         document.getElementById('main-viewport').appendChild(wrapper);
 
+        const initW = Math.round(A4_W * currentZoom);
+        const initH = Math.round(A4_H * currentZoom);
         const newCanvas = new fabric.Canvas(canvasId, {
-            width: A4_W * currentZoom,
-            height: A4_H * currentZoom,
+            width: initW,
+            height: initH,
             backgroundColor: '#fff',
             preserveObjectStacking: true
         });
+
+        // 同步外框 div 初始大小（直接用 wrapper 變數，不用走 DOM）
+        wrapper.style.width  = initW + 'px';
+        wrapper.style.height = initH + 'px';
 
         newCanvas.setZoom(currentZoom);
         canvases.push(newCanvas);
@@ -431,6 +540,9 @@
         newCanvas.on('mouse:down', () => setActivePage(newCanvas, wrapper));
         newCanvas.on('object:added', () => saveHistory(newCanvas));
         newCanvas.on('object:modified', () => saveHistory(newCanvas));
+
+        // 等畫布初始化完成後儲存初始狀態
+        setTimeout(() => saveInitialHistory(newCanvas), 100);
 
         updateHeaderFooter();
         const pageCount = canvases.length;
@@ -485,23 +597,36 @@
     });
 
     function saveHistory(targetCanvas) {
+        if (isUndoing) return;  // undo 還原中，不記錄
         const idx = canvases.indexOf(targetCanvas);
         const json = JSON.stringify(targetCanvas.toObject(['id', 'selectable', 'evented']));
         if (undoStacks[idx][undoStacks[idx].length - 1] !== json) {
             undoStacks[idx].push(json);
-            if (undoStacks[idx].length > 20) undoStacks[idx].shift();
+            if (undoStacks[idx].length > 30) undoStacks[idx].shift();
         }
+    }
+
+    function saveInitialHistory(targetCanvas) {
+        const idx = canvases.indexOf(targetCanvas);
+        const json = JSON.stringify(targetCanvas.toObject(['id', 'selectable', 'evented']));
+        undoStacks[idx] = [json];
     }
 
     function undo() {
         const idx = canvases.indexOf(activeCanvas);
         if (undoStacks[idx].length > 1) {
+            isUndoing = true;
             undoStacks[idx].pop();
+            const remaining = undoStacks[idx].length - 1;
             activeCanvas.loadFromJSON(undoStacks[idx][undoStacks[idx].length - 1], () => {
                 activeCanvas.renderAll();
                 updateHeaderFooter();
                 renderAllTables();
+                isUndoing = false;
             });
+            showStatus('已復原' + (remaining > 0 ? '（還可再復原 ' + remaining + ' 步）' : '（已到最初狀態）'), 1800);
+        } else {
+            showStatus('已到最初狀態，無法再復原', 1800);
         }
     }
 
@@ -641,6 +766,9 @@
             }
         });
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+        const tag = document.getElementById('status-tag');
+        const hints = { select: '選取模式 | CTRL+滾輪縮放', brush: '筆刷模式', highlighter: '螢光筆模式' };
+        tag.innerText = hints[mode] || '';
     }
 
     function addPureText() { if (activeCanvas) activeCanvas.add(new fabric.IText('輸入文字', { left: 100, top: 100, fontSize: 20, backgroundColor: '#ffff99' })); }
@@ -749,17 +877,46 @@
 
     async function saveAllPagesAsJPG() {
         const oriZoom = currentZoom;
-        canvases.forEach(c => { c.setZoom(1); c.setWidth(A4_W); c.setHeight(A4_H); });
-        const wrappers = document.querySelectorAll('.canvas-wrapper');
-        for (let i = 0; i < wrappers.length; i++) {
-            const cvs = await html2canvas(wrappers[i], { scale: 2 });
+
+        // 先取消所有選取（避免選取框出現在圖片上）
+        canvases.forEach(c => c.discardActiveObject());
+
+        for (let i = 0; i < canvases.length; i++) {
+            const c = canvases[i];
+
+            // 暫時縮回 1:1 輸出
+            c.setZoom(1);
+            c.setWidth(A4_W);
+            c.setHeight(A4_H);
+            c.renderAll();
+
+            // 直接從 Fabric canvas 取圖，不經過 html2canvas
+            const dataUrl = c.toDataURL({
+                format: 'jpeg',
+                quality: 0.92,
+                multiplier: 2,          // 2x 高解析度
+                width: A4_W,
+                height: A4_H,
+                left: 0,
+                top: 0
+            });
+
             const link = document.createElement('a');
             link.download = `治療計畫-${patientData.name}-P${i + 1}.jpg`;
-            link.href = cvs.toDataURL('image/jpeg', 0.92);
+            link.href = dataUrl;
             link.click();
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 250));
+
+            // 還原縮放
+            const w = Math.round(A4_W * oriZoom);
+            const h = Math.round(A4_H * oriZoom);
+            c.setZoom(oriZoom);
+            c.setWidth(w);
+            c.setHeight(h);
+            const wrapper = getWrapper(c);
+            if (wrapper) { wrapper.style.width = w + 'px'; wrapper.style.height = h + 'px'; }
+            c.renderAll();
         }
-        canvases.forEach(c => { c.setZoom(oriZoom); c.setWidth(A4_W * oriZoom); c.setHeight(A4_H * oriZoom); });
     }
 
     init();
