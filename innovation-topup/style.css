@@ -1,0 +1,62 @@
+/* Custom styles for Hexin Meal Expense Manager */
+
+body {
+    background-color: #fffaf0; /* floralwhite */
+}
+
+.tab-btn.active {
+    background-color: #f59e0b !important; /* amber-500 */
+    color: white;
+}
+
+.tab-btn {
+    transition: all 0.3s;
+    font-weight: bold;
+    border-radius: 9999px; /* rounded-full */
+}
+
+/* 改掉藍色按鈕，統一改為暖色系 */
+.bg-blue-500, .bg-blue-600 {
+    background-color: #d97706 !important; /* amber-600 */
+}
+
+.user-card {
+    transition: transform 0.2s;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #fcd34d; /* amber-300 */
+    padding: 10px !important; /* 更小一點 */
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.balance-negative {
+    color: #e11d48; /* rose-600 */
+    font-weight: bold;
+}
+
+/* Toast 通知樣式 */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+.toast {
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-top: 10px;
+    animation: fadeIn 0.3s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* loading spinner */
+.animate-spin {
+    border-color: #d97706 !important; /* amber-600 */
+    border-top-color: transparent !important;
+}

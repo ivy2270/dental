@@ -1,0 +1,361 @@
+/**
+ * 禾新餐費管理系統 - 前端邏輯
+ */
+
+// --- 請填入您的資訊 ---
+const API_URL = 'https://script.google.com/macros/s/AKfycbwl1YfmcqudkutUsLlZ8Orpw4lVrqEM0qZQdpxnxo2jH0Ju_nGSQhM-UEa7kMcoPaGqlw/exec';
+// --------------------
+
+let users = [];
+let categories = [];
+let currentApiKey = '';
+let historyPage = 1;
+let currentHistoryUser = '';
+
+/**
+ * 登入驗證
+ */
+async function authenticate() {
+    const btn = document.getElementById('auth-btn');
+    btn.innerHTML = '<span class="animate-pulse">進入系統中...</span>';
+    btn.disabled = true;
+
+    const keyInput = document.getElementById('auth-key').value;
+    if (!keyInput) {
+        alert('請輸入金鑰');
+        btn.innerHTML = '進入系統';
+        btn.disabled = false;
+        return;
+    }
+    
+    currentApiKey = keyInput;
+    const success = await initData();
+    
+    if (success) {
+        document.getElementById('auth-overlay').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+    } else {
+        currentApiKey = '';
+        btn.innerHTML = '進入系統';
+        btn.disabled = false;
+        alert('金鑰錯誤，請重新輸入');
+    }
+}
+
+/**
+ * 顯示 Toast 通知
+ */
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+/**
+ * 初始化資料
+ */
+async function initData() {
+    showLoading(true, '載入中...');
+    try {
+        const response = await fetch(`${API_URL}?action=init&key=${encodeURIComponent(currentApiKey)}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            return false;
+        }
+
+        users = data.users;
+        categories = data.categories;
+        
+        renderDashboard();
+        renderUserSelections();
+        renderCategoryOptions();
+        return true;
+    } catch (err) {
+        console.error(err);
+        return false;
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * 分頁切換
+ */
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`section-${tab}`).classList.remove('hidden');
+    
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active', 'bg-amber-500', 'text-white'));
+    document.getElementById(`tab-${tab}`).classList.add('active', 'bg-amber-500', 'text-white');
+}
+
+/**
+ * 渲染儀表板
+ */
+function renderDashboard() {
+    const container = document.getElementById('user-cards');
+    const alertBox = document.getElementById('balance-alert');
+    const alertNames = document.getElementById('low-balance-names');
+    
+    container.innerHTML = '';
+    let lowBalance = [];
+
+    users.forEach(user => {
+        const isNegative = user.balance < 0;
+        if (isNegative) lowBalance.push(`${user.name}(${user.balance})`);
+
+        const card = document.createElement('div');
+        card.className = `bg-white p-4 rounded-lg shadow user-card ${isNegative ? 'border-2 border-red-300' : ''}`;
+        card.innerHTML = `
+            <div class="text-gray-500 text-xs mb-1">人員</div>
+            <div class="font-bold text-lg">${user.name}</div>
+            <div class="text-right mt-2 ${isNegative ? 'text-red-600 font-bold' : 'text-green-600'}">
+                $${user.balance}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    if (lowBalance.length > 0) {
+        alertBox.classList.remove('hidden');
+        alertNames.innerText = lowBalance.join(', ');
+    } else {
+        alertBox.classList.add('hidden');
+    }
+}
+
+/**
+ * 渲染人名選單
+ */
+function renderUserSelections() {
+    const batchList = document.getElementById('batch-user-list');
+    const depositSelect = document.getElementById('deposit-user');
+    const historySelect = document.getElementById('history-user');
+
+    batchList.innerHTML = '';
+    depositSelect.innerHTML = '<option value="">請選擇人員...</option>';
+    historySelect.innerHTML = '<option value="全部">全部人員</option>';
+
+    users.forEach(user => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer';
+        label.innerHTML = `
+            <input type="checkbox" class="user-checkbox h-5 w-5 text-blue-600" value="${user.name}">
+            <span class="text-sm">${user.name}</span>
+        `;
+        batchList.appendChild(label);
+
+        const opt = `<option value="${user.name}">${user.name}</option>`;
+        depositSelect.innerHTML += opt;
+        historySelect.innerHTML += opt;
+    });
+}
+
+function renderCategoryOptions() {
+    const select = document.getElementById('batch-category');
+    select.innerHTML = '';
+    categories.filter(c => c !== '儲值').forEach(c => {
+        select.innerHTML += `<option value="${c}">${c}</option>`;
+    });
+}
+
+// --- 批次輸入邏輯 ---
+
+function selectAllUsers(checked) {
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = checked);
+}
+
+function toBatchStep2() {
+    const selected = Array.from(document.querySelectorAll('.user-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert('請至少選擇一個人');
+
+    const table = document.getElementById('batch-input-table');
+    table.innerHTML = '';
+    selected.forEach(name => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-4 py-2">${name}</td>
+            <td class="px-4 py-2">
+                <input type="number" class="row-amount w-full border rounded p-1" data-name="${name}" placeholder="金額">
+            </td>
+            <td class="px-4 py-2">
+                <input type="text" class="row-note w-full border rounded p-1" data-name="${name}" placeholder="備註">
+            </td>
+        `;
+        table.appendChild(tr);
+    });
+
+    document.getElementById('batch-step-1').classList.add('hidden');
+    document.getElementById('batch-step-2').classList.remove('hidden');
+}
+
+function toBatchStep1() {
+    document.getElementById('batch-step-1').classList.remove('hidden');
+    document.getElementById('batch-step-2').classList.add('hidden');
+}
+
+function applyAllAmount() {
+    const amount = document.getElementById('batch-amount-all').value;
+    document.querySelectorAll('.row-amount').forEach(input => input.value = amount);
+}
+
+async function submitBatch() {
+    const category = document.getElementById('batch-category').value;
+    const records = [];
+    let isValid = true;
+
+    document.querySelectorAll('.row-amount').forEach(input => {
+        const val = parseFloat(input.value);
+        if (isNaN(val)) isValid = false;
+        records.push({
+            name: input.dataset.name,
+            amount: val,
+            category: category,
+            note: document.querySelector(`.row-note[data-name="${input.dataset.name}"]`).value
+        });
+    });
+
+    if (!isValid) return alert('請確保所有金額皆已填寫且為數字');
+
+    showLoading(true, '提交紀錄中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'recordTransaction',
+                key: currentApiKey,
+                records: records
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast("提交成功！");
+            await initData();
+            toBatchStep1();
+            switchTab("dashboard");
+        } else {
+            showToast("提交失敗：" + result.error);
+        }
+    } catch (err) {
+        showToast("網路錯誤，請稍後再試");
+    } finally {
+        showLoading(false);
+    }
+}
+
+// --- 儲值邏輯 ---
+
+async function submitDeposit() {
+    const name = document.getElementById('deposit-user').value;
+    const amount = parseFloat(document.getElementById('deposit-amount').value);
+    const note = document.getElementById('deposit-note').value;
+
+    if (!name || isNaN(amount) || amount <= 0) return alert('請填寫正確的人員與金額');
+
+    showLoading(true, '處理儲值中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'deposit',
+                key: currentApiKey,
+                record: { name, amount, note }
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast("儲值成功！");
+            document.getElementById('deposit-amount').value = '';
+            document.getElementById('deposit-note').value = '';
+            await initData();
+            switchTab('dashboard');
+        } else {
+            showToast("儲值失敗：" + result.error);
+        }
+    } catch (err) {
+        showToast("網路錯誤");
+    } finally {
+        showLoading(false);
+    }
+}
+
+// --- 查詢邏輯 ---
+
+async function queryHistory() {
+    historyPage = 1;
+    document.getElementById('history-table-body').innerHTML = '';
+    fetchHistory();
+}
+
+async function loadMoreHistory() {
+    historyPage++;
+    fetchHistory();
+}
+
+async function fetchHistory() {
+    showLoading(true, '查詢中...');
+    const user = document.getElementById('history-user').value || '全部';
+    const start = document.getElementById('history-date-start').value;
+    const end = document.getElementById('history-date-end').value;
+
+    try {
+        const url = `${API_URL}?action=getHistory&name=${encodeURIComponent(user)}&start=${start}&end=${end}&key=${encodeURIComponent(currentApiKey)}&page=${historyPage}`;
+        const res = await fetch(url);
+        const result = await res.json();
+        
+        renderHistory(result.data);
+        
+        const pagination = document.getElementById('history-pagination');
+        if (result.hasMore) {
+            pagination.classList.remove('hidden');
+        } else {
+            pagination.classList.add('hidden');
+        }
+    } catch (err) {
+        showToast('查詢失敗');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function renderHistory(data) {
+    const tbody = document.getElementById('history-table-body');
+    data.forEach(item => {
+        const tr = document.createElement('tr');
+        const amountClass = item.amount < 0 ? 'text-red-500' : 'text-green-600 font-bold';
+        tr.innerHTML = `
+            <td class="px-4 py-2">${item.timestamp}</td>
+            <td class="px-4 py-2">${item.name}</td>
+            <td class="px-4 py-2">${item.type}</td>
+            <td class="px-4 py-2">${item.category} ${item.note ? `(${item.note})` : ''}</td>
+            <td class="px-4 py-2 ${amountClass}">${item.amount}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- 輔助工具 ---
+
+function showLoading(show, text = '處理中...') {
+    const loader = document.getElementById('loading-overlay');
+    const loaderText = document.getElementById('loading-text');
+    if (show) {
+        loaderText.innerText = text;
+        loader.classList.remove('hidden');
+    } else {
+        loader.classList.add('hidden');
+    }
+}
+
+// 啟動
+window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('history-date-start').value = today;
+    document.getElementById('history-date-end').value = today;
+    // 如果想要直接載入initData，可以加在這裡
+    // initData();
+};
