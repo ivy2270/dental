@@ -103,8 +103,10 @@ function renderDashboard() {
     
     container.innerHTML = '';
     let lowBalance = [];
+    let totalBalance = 0;
 
     users.forEach(user => {
+        totalBalance += user.balance;
         const isNegative = user.balance < 0;
         if (isNegative) lowBalance.push(`${user.name}(${user.balance})`);
 
@@ -126,6 +128,7 @@ function renderDashboard() {
     } else {
         alertBox.classList.add('hidden');
     }
+    document.getElementById('total-balance').innerText = totalBalance;
 }
 
 /**
