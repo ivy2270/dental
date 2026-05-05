@@ -30,21 +30,47 @@
 
     <div id="app" class="max-w-4xl mx-auto p-4 hidden">
         <!-- 導覽列 -->
-        <nav class="flex space-x-2 mb-6 bg-white p-2 rounded-lg shadow-sm overflow-x-auto">
-            <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-dashboard">儀表板</button>
-            <button onclick="switchTab('batch')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-batch">批次輸入</button>
-            <button onclick="switchTab('deposit')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-deposit">人員儲值</button>
-            <button onclick="switchTab('history')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-history">紀錄查詢</button>
+        <nav class="mb-6 relative">
+            <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm">
+                <h1 class="text-xl font-bold text-amber-800 ml-2 sm:hidden">餐費管理</h1>
+                <!-- 漢堡按鈕 -->
+                <button id="menu-toggle" class="sm:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
+                </button>
+                <!-- 電腦版選單 -->
+                <div class="hidden sm:flex space-x-2">
+                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-dashboard">儀表板</button>
+                    <button onclick="switchTab('batch')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-batch">批次輸入</button>
+                    <button onclick="switchTab('deposit')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-deposit">人員儲值</button>
+                    <button onclick="switchTab('history')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-history">紀錄查詢</button>
+                </div>
+            </div>
+            <!-- 手機版下拉選單 -->
+            <div id="mobile-menu" class="hidden sm:hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg z-50 overflow-hidden">
+                <div class="flex flex-col">
+                    <button onclick="switchTab('dashboard')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-dashboard">儀表板</button>
+                    <button onclick="switchTab('batch')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-batch">批次輸入</button>
+                    <button onclick="switchTab('deposit')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-deposit">人員儲值</button>
+                    <button onclick="switchTab('history')" class="px-4 py-3 hover:bg-amber-50 text-left" id="mobile-tab-history">紀錄查詢</button>
+                </div>
+            </div>
         </nav>
 
         <!-- 儀表板 -->
         <section id="section-dashboard" class="tab-content">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex flex-col space-y-2 mb-4">
                 <h2 class="text-2xl font-bold text-gray-800">人員餘額概況</h2>
-                <div id="total-balance-container" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
-                    總計: $<span id="total-balance">0</span>
+                <div class="flex justify-between items-center">
+                    <div id="total-balance-container" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold shadow-sm">
+                        總計: $<span id="total-balance">0</span>
+                    </div>
+                    <button onclick="initData()" class="bg-amber-100 text-amber-800 p-2 rounded-lg hover:bg-amber-200 transition shadow-sm" title="重新整理">
+                        <span class="sm:hidden text-xl">↺</span>
+                        <span class="hidden sm:inline">↺ 重新整理</span>
+                    </button>
                 </div>
-                <button onclick="initData()" class="bg-amber-100 text-amber-800 px-4 py-2 rounded-full hover:bg-amber-200 transition">↺ 重新整理</button>
             </div>
             <div id="balance-alert" class="hidden mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
                 <strong>注意！</strong> 以下人員餘額已不足：<span id="low-balance-names"></span>
@@ -86,7 +112,7 @@
                             <input type="number" id="batch-amount-all" oninput="applyAllAmount()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2" placeholder="輸入金額將套用至所有人">
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="hidden sm:block overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead>
                                 <tr>
@@ -99,6 +125,10 @@
                                 <!-- 選取的人員列 -->
                             </tbody>
                         </table>
+                    </div>
+                    <!-- 手機版卡片式輸入 -->
+                    <div id="batch-input-cards" class="sm:hidden space-y-4">
+                        <!-- 由 JS 動態產生 -->
                     </div>
                 </div>
                 <div class="flex space-x-2">
@@ -136,17 +166,18 @@
         <section id="section-history" class="tab-content hidden">
             <h2 class="text-2xl font-bold mb-4">紀錄查詢</h2>
             <div class="bg-white p-4 rounded-lg shadow mb-4 space-y-2">
-                <div class="flex space-x-2">
-                    <select id="history-user" class="flex-1 rounded-lg border-gray-300 shadow-sm border p-2">
-                        <!-- 由 JS 動態產生 -->
-                    </select>
-                    <input type="date" id="history-date-start" class="rounded-lg border-gray-300 shadow-sm border p-2">
-                    <input type="date" id="history-date-end" class="rounded-lg border-gray-300 shadow-sm border p-2">
+                <select id="history-user" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                    <!-- 由 JS 動態產生 -->
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="history-date-start" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                    <input type="date" id="history-date-end" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
                 </div>
                 <button onclick="queryHistory()" class="w-full bg-amber-600 text-white px-6 py-2 rounded-lg font-bold">查詢</button>
             </div>
             <div class="bg-white rounded-lg shadow overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <!-- 電腦版表格 -->
+                <table class="hidden sm:table min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-2 text-left font-medium text-gray-500">時間</th>
@@ -160,6 +191,10 @@
                         <!-- 由 JS 動態產生 -->
                     </tbody>
                 </table>
+                <!-- 手機版列表 -->
+                <div id="history-list-mobile" class="sm:hidden divide-y divide-gray-200">
+                    <!-- 由 JS 動態產生 -->
+                </div>
             </div>
             <div id="history-pagination" class="mt-4 text-center hidden">
                 <button onclick="loadMoreHistory()" class="bg-gray-200 text-gray-700 px-8 py-2 rounded-lg hover:bg-gray-300">載入更多...</button>

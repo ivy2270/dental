@@ -89,8 +89,19 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.getElementById(`section-${tab}`).classList.remove('hidden');
     
+    // 電腦版按鈕狀態
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active', 'bg-amber-500', 'text-white'));
-    document.getElementById(`tab-${tab}`).classList.add('active', 'bg-amber-500', 'text-white');
+    const activeBtn = document.getElementById(`tab-${tab}`);
+    if (activeBtn) activeBtn.classList.add('active', 'bg-amber-500', 'text-white');
+
+    // 手機版按鈕狀態
+    document.querySelectorAll('[id^="mobile-tab-"]').forEach(el => el.classList.remove('bg-amber-100', 'font-bold'));
+    const mobileBtn = document.getElementById(`mobile-tab-${tab}`);
+    if (mobileBtn) mobileBtn.classList.add('bg-amber-100', 'font-bold');
+
+    // 關閉手機選單
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileMenu) mobileMenu.classList.add('hidden');
 }
 
 /**
@@ -113,7 +124,6 @@ function renderDashboard() {
         const card = document.createElement('div');
         card.className = `bg-white p-4 rounded-lg shadow user-card ${isNegative ? 'border-2 border-red-300' : ''}`;
         card.innerHTML = `
-            <div class="text-gray-500 text-xs mb-1">人員</div>
             <div class="font-bold text-lg">${user.name}</div>
             <div class="text-right mt-2 ${isNegative ? 'text-red-600 font-bold' : 'text-green-600'}">
                 $${user.balance}
@@ -177,8 +187,12 @@ function toBatchStep2() {
     if (selected.length === 0) return alert('請至少選擇一個人');
 
     const table = document.getElementById('batch-input-table');
+    const cards = document.getElementById('batch-input-cards');
     table.innerHTML = '';
+    cards.innerHTML = '';
+
     selected.forEach(name => {
+        // 電腦版表格行
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="px-4 py-2">${name}</td>
@@ -190,20 +204,65 @@ function toBatchStep2() {
             </td>
         `;
         table.appendChild(tr);
+
+        // 手機版卡片
+        const card = document.createElement('div');
+        card.className = "bg-gray-50 p-4 rounded-lg border space-y-2";
+        card.innerHTML = `
+            <div class="font-bold text-amber-800">${name}</div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">金額</label>
+                    <input type="number" class="row-amount-mobile w-full border rounded p-2" data-name="${name}" placeholder="金額">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">備註</label>
+                    <input type="text" class="row-note-mobile w-full border rounded p-2" data-name="${name}" placeholder="備註">
+                </div>
+            </div>
+        `;
+        cards.appendChild(card);
     });
+
+    // 同步手機與電腦版的輸入
+    setupBatchInputSync();
 
     document.getElementById('batch-step-1').classList.add('hidden');
     document.getElementById('batch-step-2').classList.remove('hidden');
 }
 
-function toBatchStep1() {
-    document.getElementById('batch-step-1').classList.remove('hidden');
-    document.getElementById('batch-step-2').classList.add('hidden');
+function setupBatchInputSync() {
+    // 當電腦版輸入時，同步到手機版
+    document.querySelectorAll('.row-amount').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const mobileInput = document.querySelector(`.row-amount-mobile[data-name="${e.target.dataset.name}"]`);
+            if (mobileInput) mobileInput.value = e.target.value;
+        });
+    });
+    document.querySelectorAll('.row-note').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const mobileInput = document.querySelector(`.row-note-mobile[data-name="${e.target.dataset.name}"]`);
+            if (mobileInput) mobileInput.value = e.target.value;
+        });
+    });
+    // 當手機版輸入時，同步到電腦版
+    document.querySelectorAll('.row-amount-mobile').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const desktopInput = document.querySelector(`.row-amount[data-name="${e.target.dataset.name}"]`);
+            if (desktopInput) desktopInput.value = e.target.value;
+        });
+    });
+    document.querySelectorAll('.row-note-mobile').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const desktopInput = document.querySelector(`.row-note[data-name="${e.target.dataset.name}"]`);
+            if (desktopInput) desktopInput.value = e.target.value;
+        });
+    });
 }
 
 function applyAllAmount() {
     const amount = document.getElementById('batch-amount-all').value;
-    document.querySelectorAll('.row-amount').forEach(input => input.value = amount);
+    document.querySelectorAll('.row-amount, .row-amount-mobile').forEach(input => input.value = amount);
 }
 
 async function submitBatch() {
@@ -291,6 +350,8 @@ async function submitDeposit() {
 async function queryHistory() {
     historyPage = 1;
     document.getElementById('history-table-body').innerHTML = '';
+    const mobileList = document.getElementById('history-list-mobile');
+    if (mobileList) mobileList.innerHTML = '';
     fetchHistory();
 }
 
@@ -327,9 +388,13 @@ async function fetchHistory() {
 
 function renderHistory(data) {
     const tbody = document.getElementById('history-table-body');
+    const mobileList = document.getElementById('history-list-mobile');
+    
     data.forEach(item => {
-        const tr = document.createElement('tr');
         const amountClass = item.amount < 0 ? 'text-red-500' : 'text-green-600 font-bold';
+        
+        // 電腦版表格
+        const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="px-4 py-2">${item.timestamp}</td>
             <td class="px-4 py-2">${item.name}</td>
@@ -338,6 +403,23 @@ function renderHistory(data) {
             <td class="px-4 py-2 ${amountClass}">${item.amount}</td>
         `;
         tbody.appendChild(tr);
+
+        // 手機版列表
+        if (mobileList) {
+            const div = document.createElement('div');
+            div.className = "p-3 space-y-1";
+            div.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <span class="font-bold text-gray-800">${item.name}</span>
+                    <span class="${amountClass}">$${item.amount}</span>
+                </div>
+                <div class="flex justify-between text-xs text-gray-500">
+                    <span>${item.category} ${item.note ? `(${item.note})` : ''}</span>
+                    <span>${item.timestamp}</span>
+                </div>
+            `;
+            mobileList.appendChild(div);
+        }
     });
 }
 
@@ -359,6 +441,20 @@ window.onload = function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('history-date-start').value = today;
     document.getElementById('history-date-end').value = today;
-    // 如果想要直接載入initData，可以加在這裡
-    // initData();
+    
+    // 漢堡選單邏輯
+    const toggle = document.getElementById('menu-toggle');
+    const menu = document.getElementById('mobile-menu');
+    if (toggle && menu) {
+        toggle.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+        });
+    }
+
+    // 點擊選單外部關閉選單
+    document.addEventListener('click', (e) => {
+        if (menu && !menu.contains(e.target) && !toggle.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
 };
