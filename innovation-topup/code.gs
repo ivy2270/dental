@@ -33,7 +33,7 @@ function doGet(e) {
     if (action === 'init') {
       return createJsonResponse({
         users: getUsersData(),
-        categories: ['午餐', '飲料', '晚餐', '其他', '儲值', '期初調整']
+        categories: ['午餐', '飲料', '晚餐', '其他', '儲值', '初始設定']
       });
     }
 
@@ -71,9 +71,6 @@ function doPost(e) {
       return createJsonResponse(recordDeposit(data.record));
     }
 
-    if (action === 'adjustBalance') {
-      return createJsonResponse(recordAdjustment(data.record));
-    }
 
     if (action === 'deleteTransaction') {
       return createJsonResponse(deleteTransaction(data.id));
@@ -218,44 +215,23 @@ function recordTransactions(records) {
 
 function recordDeposit(r) {
   if (!r || !r.name) {
-    return { success: false, error: '缺少儲值人員' };
-  }
-
-  const amount = Math.abs(parseFloat(r.amount));
-  if (isNaN(amount) || amount <= 0) {
-    return { success: false, error: '儲值金額不正確' };
-  }
-
-  LOG_SHEET.appendRow([
-    Utilities.getUuid(),
-    new Date(),
-    r.name,
-    '儲值',
-    '儲值',
-    amount,
-    r.note || ''
-  ]);
-
-  updateUserBalance(r.name, amount);
-  return { success: true };
-}
-
-function recordAdjustment(r) {
-  if (!r || !r.name) {
-    return { success: false, error: '缺少調整人員' };
+    return { success: false, error: '缺少人員' };
   }
 
   const amount = parseFloat(r.amount);
   if (isNaN(amount) || amount === 0) {
-    return { success: false, error: '調整金額不能為 0' };
+    return { success: false, error: '金額不正確或為0' };
   }
+
+  const type = r.type || (amount > 0 ? '儲值' : '支出');
+  const category = r.category || (amount > 0 ? '儲值' : '其他');
 
   LOG_SHEET.appendRow([
     Utilities.getUuid(),
     new Date(),
     r.name,
-    '調整',
-    r.category || '期初調整',
+    type,
+    category,
     amount,
     r.note || ''
   ]);
@@ -263,6 +239,7 @@ function recordAdjustment(r) {
   updateUserBalance(r.name, amount);
   return { success: true };
 }
+
 
 function deleteTransaction(id) {
   const data = LOG_SHEET.getDataRange().getValues();

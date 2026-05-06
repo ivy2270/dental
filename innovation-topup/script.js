@@ -176,27 +176,26 @@ function renderDashboard() {
 function renderUserSelections() {
     const batchList = document.getElementById('batch-user-list');
     const depositSelect = document.getElementById('deposit-user');
-    const adjustmentSelect = document.getElementById('adjustment-user');
     const historySelect = document.getElementById('history-user');
 
-    batchList.innerHTML = '';
-    depositSelect.innerHTML = '<option value="">請選擇人員...</option>';
-    adjustmentSelect.innerHTML = '<option value="">請選擇人員...</option>';
-    historySelect.innerHTML = '<option value="全部">全部人員</option>';
+    if (batchList) batchList.innerHTML = '';
+    if (depositSelect) depositSelect.innerHTML = '<option value="">請選擇人員...</option>';
+    if (historySelect) historySelect.innerHTML = '<option value="全部">全部人員</option>';
 
     users.forEach(user => {
-        const label = document.createElement('label');
-        label.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer';
-        label.innerHTML = `
-            <input type="checkbox" class="user-checkbox h-5 w-5 text-blue-600" value="${user.name}">
-            <span class="text-sm">${user.name}</span>
-        `;
-        batchList.appendChild(label);
+        if (batchList) {
+            const label = document.createElement('label');
+            label.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer';
+            label.innerHTML = `
+                <input type="checkbox" class="user-checkbox h-5 w-5 text-blue-600" value="${user.name}">
+                <span class="text-sm">${user.name}</span>
+            `;
+            batchList.appendChild(label);
+        }
 
         const opt = `<option value="${user.name}">${user.name}</option>`;
-        depositSelect.innerHTML += opt;
-        adjustmentSelect.innerHTML += opt;
-        historySelect.innerHTML += opt;
+        if (depositSelect) depositSelect.innerHTML += opt;
+        if (historySelect) historySelect.innerHTML += opt;
     });
 }
 
@@ -205,9 +204,12 @@ function renderCategoryOptions() {
     const historySelect = document.getElementById('history-category');
     select.innerHTML = '';
     historySelect.innerHTML = '<option value="全部">全部項目</option>';
+    const expenseCategories = categories.filter(c => c !== '儲值' && c !== '期初設定');
+    expenseCategories.forEach(c => {
+        if (select) select.innerHTML += `<option value="${c}">${c}</option>`;
+    });
     categories.forEach(c => {
-        select.innerHTML += `<option value="${c}">${c}</option>`;
-        historySelect.innerHTML += `<option value="${c}">${c}</option>`;
+        if (historySelect) historySelect.innerHTML += `<option value="${c}">${c}</option>`;
     });
 }
 
@@ -372,34 +374,35 @@ async function submitBatch() {
     }
 }
 
-// --- 儲值邏輯 ---
+// --- 儲值/初始金額設定邏輯 ---
 
 async function submitDeposit() {
     const name = document.getElementById('deposit-user').value;
     const amount = parseFloat(document.getElementById('deposit-amount').value);
+    const category = document.getElementById('deposit-category').value || '儲值';
     const note = document.getElementById('deposit-note').value;
 
-    if (!name || isNaN(amount) || amount <= 0) return alert('請填寫正確的人員與金額');
+    if (!name || isNaN(amount) || amount === 0) return alert('請填寫正確的人員與金額（不能為0）');
 
-    showLoading(true, '處理儲值中...');
+    showLoading(true, '處理中...');
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'deposit',
                 key: currentApiKey,
-                record: { name, amount, note }
+                record: { name, amount, category, note }
             })
         });
         const result = await res.json();
         if (result.success) {
-            showToast("儲值成功！");
+            showToast("處理成功！");
             document.getElementById('deposit-amount').value = '';
             document.getElementById('deposit-note').value = '';
             await initData();
             switchTab('dashboard');
         } else {
-            showToast("儲值失敗：" + result.error);
+            showToast("處理失敗：" + result.error);
         }
     } catch (err) {
         showToast("網路錯誤");
@@ -407,44 +410,7 @@ async function submitDeposit() {
         showLoading(false);
     }
 }
-
 // --- 查詢邏輯 ---
-
-async function submitAdjustment() {
-    const name = document.getElementById('adjustment-user').value;
-    const amount = parseFloat(document.getElementById('adjustment-amount').value);
-    const category = document.getElementById('adjustment-category').value.trim() || '期初調整';
-    const note = document.getElementById('adjustment-note').value;
-
-    if (!name || isNaN(amount) || amount === 0) return alert('請選擇人員，並輸入非 0 的調整金額');
-
-    showLoading(true, '處理調整中...');
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'adjustBalance',
-                key: currentApiKey,
-                record: { name, amount, category, note }
-            })
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('餘額調整成功');
-            document.getElementById('adjustment-amount').value = '';
-            document.getElementById('adjustment-category').value = '期初調整';
-            document.getElementById('adjustment-note').value = '';
-            await initData();
-            switchTab('dashboard');
-        } else {
-            showToast('餘額調整失敗：' + result.error);
-        }
-    } catch (err) {
-        showToast('網路錯誤');
-    } finally {
-        showLoading(false);
-    }
-}
 
 async function queryHistory() {
     historyPage = 1;
@@ -556,10 +522,10 @@ function renderHistory(data) {
             <td class="px-4 py-2">${item.category} ${item.note ? `(${item.note})` : ''}</td>
             <td class="px-4 py-2 ${amountClass}">${formatMoney(amount)}</td>
             <td class="px-4 py-2 space-x-2">
-                <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-blue-600" title="修改" aria-label="修改">
+                <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-gray-500" title="修改" aria-label="修改">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-red-50 text-red-600" title="刪除" aria-label="刪除">
+                <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-red-50 text-gray-500" title="刪除" aria-label="刪除">
                     <i class="fa-solid fa-trash"></i>
                 </button>
             </td>
@@ -580,10 +546,10 @@ function renderHistory(data) {
                     <span>${item.timestamp}</span>
                 </div>
                 <div class="flex justify-end space-x-4 pt-1 border-t mt-1 text-sm">
-                    <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-blue-600" title="修改" aria-label="修改">
+                    <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-gray-500" title="修改" aria-label="修改">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </button>
-                    <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-red-600" title="刪除" aria-label="刪除">
+                    <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-gray-500" title="刪除" aria-label="刪除">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -692,9 +658,13 @@ function showLoading(show, text = '處理中...') {
 
 // 啟動
 window.onload = function() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('history-date-start').value = today;
-    document.getElementById('history-date-end').value = today;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    const localToday = `${year}-${month}-${day}`;
+    document.getElementById('history-date-start').value = localToday;
+    document.getElementById('history-date-end').value = localToday;
     // 漢堡選單邏輯
     const toggle = document.getElementById('menu-toggle');
     const menu = document.getElementById('mobile-menu');
