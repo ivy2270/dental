@@ -11,6 +11,13 @@ let categories = [];
 let currentApiKey = '';
 let historyPage = 1;
 let currentHistoryUser = '';
+let historyRequestSeq = 0;
+const historyItemById = {};
+
+function formatMoney(value) {
+    const amount = Number(value) || 0;
+    return amount.toLocaleString('zh-TW', { maximumFractionDigits: 2 });
+}
 
 /**
  * 登入驗證
@@ -27,10 +34,8 @@ async function authenticate() {
         btn.disabled = false;
         return;
     }
-    
     currentApiKey = keyInput;
     const success = await initData();
-    
     if (success) {
         document.getElementById('auth-overlay').classList.add('hidden');
         document.getElementById('app').classList.remove('hidden');
@@ -62,14 +67,12 @@ async function initData() {
     try {
         const response = await fetch(`${API_URL}?action=init&key=${encodeURIComponent(currentApiKey)}`);
         const data = await response.json();
-        
         if (data.error) {
             return false;
         }
 
         users = data.users;
         categories = data.categories;
-        
         renderDashboard();
         renderUserSelections();
         renderCategoryOptions();
@@ -85,10 +88,37 @@ async function initData() {
 /**
  * 分頁切換
  */
+async function recalculateBalances() {
+    if (!confirm('確定要從 Log 重新計算所有人員餘額嗎？這會覆寫 Users 分頁的 Balance 欄。')) return;
+
+    showLoading(true, '重新計算餘額中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'recalculateBalances',
+                key: currentApiKey
+            })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            users = result.users || users;
+            renderDashboard();
+            showToast(`餘額已重新計算，共更新 ${result.updated || 0} 位人員`);
+        } else {
+            showToast('重新計算失敗：' + result.error);
+        }
+    } catch (err) {
+        showToast('網路錯誤，請稍後再試');
+    } finally {
+        showLoading(false);
+    }
+}
+
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.getElementById(`section-${tab}`).classList.remove('hidden');
-    
     // 電腦版按鈕狀態
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active', 'bg-amber-500', 'text-white'));
     const activeBtn = document.getElementById(`tab-${tab}`);
@@ -111,22 +141,21 @@ function renderDashboard() {
     const container = document.getElementById('user-cards');
     const alertBox = document.getElementById('balance-alert');
     const alertNames = document.getElementById('low-balance-names');
-    
     container.innerHTML = '';
     let lowBalance = [];
     let totalBalance = 0;
 
     users.forEach(user => {
-        totalBalance += user.balance;
+        totalBalance += Number(user.balance) || 0;
         const isNegative = user.balance < 0;
-        if (isNegative) lowBalance.push(`${user.name}(${user.balance})`);
+        if (isNegative) lowBalance.push(`${user.name}(${formatMoney(user.balance)})`);
 
         const card = document.createElement('div');
         card.className = `bg-white p-4 rounded-lg shadow user-card ${isNegative ? 'border-2 border-red-300' : ''}`;
         card.innerHTML = `
             <div class="font-bold text-lg">${user.name}</div>
             <div class="text-right mt-2 ${isNegative ? 'text-red-600 font-bold' : 'text-green-600'}">
-                $${user.balance}
+                $${formatMoney(user.balance)}
             </div>
         `;
         container.appendChild(card);
@@ -138,7 +167,7 @@ function renderDashboard() {
     } else {
         alertBox.classList.add('hidden');
     }
-    document.getElementById('total-balance').innerText = totalBalance;
+    document.getElementById('total-balance').innerText = formatMoney(totalBalance);
 }
 
 /**
@@ -147,10 +176,12 @@ function renderDashboard() {
 function renderUserSelections() {
     const batchList = document.getElementById('batch-user-list');
     const depositSelect = document.getElementById('deposit-user');
+    const adjustmentSelect = document.getElementById('adjustment-user');
     const historySelect = document.getElementById('history-user');
 
     batchList.innerHTML = '';
     depositSelect.innerHTML = '<option value="">請選擇人員...</option>';
+    adjustmentSelect.innerHTML = '<option value="">請選擇人員...</option>';
     historySelect.innerHTML = '<option value="全部">全部人員</option>';
 
     users.forEach(user => {
@@ -164,15 +195,19 @@ function renderUserSelections() {
 
         const opt = `<option value="${user.name}">${user.name}</option>`;
         depositSelect.innerHTML += opt;
+        adjustmentSelect.innerHTML += opt;
         historySelect.innerHTML += opt;
     });
 }
 
 function renderCategoryOptions() {
     const select = document.getElementById('batch-category');
+    const historySelect = document.getElementById('history-category');
     select.innerHTML = '';
-    categories.filter(c => c !== '儲值').forEach(c => {
+    historySelect.innerHTML = '<option value="全部">全部項目</option>';
+    categories.forEach(c => {
         select.innerHTML += `<option value="${c}">${c}</option>`;
+        historySelect.innerHTML += `<option value="${c}">${c}</option>`;
     });
 }
 
@@ -231,12 +266,31 @@ function toBatchStep2() {
     document.getElementById('batch-step-2').classList.remove('hidden');
 }
 
+function toBatchStep1() {
+    document.getElementById('batch-step-2').classList.add('hidden');
+    document.getElementById('batch-step-1').classList.remove('hidden');
+    document.getElementById('batch-amount-all').value = '';
+    document.getElementById('batch-total-sum').innerText = '0';
+    document.getElementById('batch-input-table').innerHTML = '';
+    document.getElementById('batch-input-cards').innerHTML = '';
+}
+
 function setupBatchInputSync() {
+    const updateSum = () => {
+        let sum = 0;
+        document.querySelectorAll('.row-amount').forEach(input => {
+            const val = parseFloat(input.value);
+            if (!isNaN(val)) sum += val;
+        });
+        document.getElementById('batch-total-sum').innerText = formatMoney(sum);
+    };
+
     // 當電腦版輸入時，同步到手機版
     document.querySelectorAll('.row-amount').forEach(input => {
         input.addEventListener('input', (e) => {
             const mobileInput = document.querySelector(`.row-amount-mobile[data-name="${e.target.dataset.name}"]`);
             if (mobileInput) mobileInput.value = e.target.value;
+            updateSum();
         });
     });
     document.querySelectorAll('.row-note').forEach(input => {
@@ -250,6 +304,7 @@ function setupBatchInputSync() {
         input.addEventListener('input', (e) => {
             const desktopInput = document.querySelector(`.row-amount[data-name="${e.target.dataset.name}"]`);
             if (desktopInput) desktopInput.value = e.target.value;
+            updateSum();
         });
     });
     document.querySelectorAll('.row-note-mobile').forEach(input => {
@@ -263,6 +318,14 @@ function setupBatchInputSync() {
 function applyAllAmount() {
     const amount = document.getElementById('batch-amount-all').value;
     document.querySelectorAll('.row-amount, .row-amount-mobile').forEach(input => input.value = amount);
+    // 更新總和
+    let sum = 0;
+    const count = document.querySelectorAll('.row-amount').length;
+    const val = parseFloat(amount);
+    if (!isNaN(val)) {
+        sum = val * count;
+    }
+    document.getElementById('batch-total-sum').innerText = formatMoney(sum);
 }
 
 async function submitBatch() {
@@ -347,12 +410,45 @@ async function submitDeposit() {
 
 // --- 查詢邏輯 ---
 
+async function submitAdjustment() {
+    const name = document.getElementById('adjustment-user').value;
+    const amount = parseFloat(document.getElementById('adjustment-amount').value);
+    const category = document.getElementById('adjustment-category').value.trim() || '期初調整';
+    const note = document.getElementById('adjustment-note').value;
+
+    if (!name || isNaN(amount) || amount === 0) return alert('請選擇人員，並輸入非 0 的調整金額');
+
+    showLoading(true, '處理調整中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'adjustBalance',
+                key: currentApiKey,
+                record: { name, amount, category, note }
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('餘額調整成功');
+            document.getElementById('adjustment-amount').value = '';
+            document.getElementById('adjustment-category').value = '期初調整';
+            document.getElementById('adjustment-note').value = '';
+            await initData();
+            switchTab('dashboard');
+        } else {
+            showToast('餘額調整失敗：' + result.error);
+        }
+    } catch (err) {
+        showToast('網路錯誤');
+    } finally {
+        showLoading(false);
+    }
+}
+
 async function queryHistory() {
     historyPage = 1;
-    document.getElementById('history-table-body').innerHTML = '';
-    const mobileList = document.getElementById('history-list-mobile');
-    if (mobileList) mobileList.innerHTML = '';
-    fetchHistory();
+    await fetchHistory();
 }
 
 async function loadMoreHistory() {
@@ -361,18 +457,29 @@ async function loadMoreHistory() {
 }
 
 async function fetchHistory() {
+    const requestSeq = ++historyRequestSeq;
     showLoading(true, '查詢中...');
     const user = document.getElementById('history-user').value || '全部';
+    const category = document.getElementById('history-category').value || '全部';
     const start = document.getElementById('history-date-start').value;
     const end = document.getElementById('history-date-end').value;
 
     try {
-        const url = `${API_URL}?action=getHistory&name=${encodeURIComponent(user)}&start=${start}&end=${end}&key=${encodeURIComponent(currentApiKey)}&page=${historyPage}`;
+        const url = `${API_URL}?action=getHistory&name=${encodeURIComponent(user)}&category=${encodeURIComponent(category)}&start=${start}&end=${end}&key=${encodeURIComponent(currentApiKey)}&page=${historyPage}`;
         const res = await fetch(url);
         const result = await res.json();
-        
+
+        if (requestSeq !== historyRequestSeq) return;
+
+        if (historyPage === 1) {
+            document.getElementById('history-table-body').innerHTML = '';
+            const mobileList = document.getElementById('history-list-mobile');
+            if (mobileList) mobileList.innerHTML = '';
+            Object.keys(historyItemById).forEach(id => delete historyItemById[id]);
+        }
+
         renderHistory(result.data);
-        
+        renderHistorySummary(result.summary); // 假設 API 會回傳摘要
         const pagination = document.getElementById('history-pagination');
         if (result.hasMore) {
             pagination.classList.remove('hidden');
@@ -386,21 +493,76 @@ async function fetchHistory() {
     }
 }
 
+async function refreshBalances() {
+    try {
+        const response = await fetch(`${API_URL}?action=init&key=${encodeURIComponent(currentApiKey)}`);
+        const data = await response.json();
+        if (!data.error) {
+            users = data.users;
+            renderDashboard();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function refreshHistory() {
+    historyPage = 1;
+    document.getElementById('history-table-body').innerHTML = '';
+    const mobileList = document.getElementById('history-list-mobile');
+    if (mobileList) mobileList.innerHTML = '';
+    await refreshBalances();
+    await fetchHistory();
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value || '';
+}
+
+function renderHistorySummary(summary) {
+    const container = document.getElementById('history-summary');
+    const items = document.getElementById('history-summary-items');
+    if (!summary || Object.keys(summary).length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    items.innerHTML = '';
+    for (const [cat, total] of Object.entries(summary)) {
+        items.innerHTML += `
+            <div class="bg-gray-50 p-2 rounded text-center border">
+                <div class="text-xs text-gray-500">${cat}</div>
+                <div class="font-bold text-gray-800">$${formatMoney(total)}</div>
+            </div>
+        `;
+    }
+}
+
 function renderHistory(data) {
     const tbody = document.getElementById('history-table-body');
     const mobileList = document.getElementById('history-list-mobile');
-    
+
     data.forEach(item => {
         const amountClass = item.amount < 0 ? 'text-red-500' : 'text-green-600 font-bold';
-        
-        // 電腦版表格
+        const amount = Number(item.amount) || 0;
+        historyItemById[item.id] = item;
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="px-4 py-2">${item.timestamp}</td>
             <td class="px-4 py-2">${item.name}</td>
             <td class="px-4 py-2">${item.type}</td>
             <td class="px-4 py-2">${item.category} ${item.note ? `(${item.note})` : ''}</td>
-            <td class="px-4 py-2 ${amountClass}">${item.amount}</td>
+            <td class="px-4 py-2 ${amountClass}">${formatMoney(amount)}</td>
+            <td class="px-4 py-2 space-x-2">
+                <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-blue-600" title="修改" aria-label="修改">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-red-50 text-red-600" title="刪除" aria-label="刪除">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
         `;
         tbody.appendChild(tr);
 
@@ -411,16 +573,108 @@ function renderHistory(data) {
             div.innerHTML = `
                 <div class="flex justify-between items-start">
                     <span class="font-bold text-gray-800">${item.name}</span>
-                    <span class="${amountClass}">$${item.amount}</span>
+                    <span class="${amountClass}">$${formatMoney(amount)}</span>
                 </div>
                 <div class="flex justify-between text-xs text-gray-500">
                     <span>${item.category} ${item.note ? `(${item.note})` : ''}</span>
                     <span>${item.timestamp}</span>
                 </div>
+                <div class="flex justify-end space-x-4 pt-1 border-t mt-1 text-sm">
+                    <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-blue-600" title="修改" aria-label="修改">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button onclick="deleteHistory('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-red-600" title="刪除" aria-label="刪除">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             `;
             mobileList.appendChild(div);
         }
     });
+}
+
+function openEditModal(id) {
+    const item = historyItemById[id];
+    if (!item) {
+        showToast('找不到這筆紀錄，請重新整理後再試');
+        return;
+    }
+
+    const amount = Number(item.amount) || 0;
+
+    document.getElementById('edit-id').value = item.id;
+    setText('edit-time-text', item.timestamp);
+    setText('edit-name-text', item.name);
+    setText('edit-type-text', item.type);
+    setText('edit-category-text', item.category);
+    document.getElementById('edit-amount').value = Math.abs(amount);
+    document.getElementById('edit-note').value = item.note || '';
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function submitEdit() {
+    const id = document.getElementById('edit-id').value;
+    const newAmount = parseFloat(document.getElementById('edit-amount').value);
+    const newNote = document.getElementById('edit-note').value;
+
+    if (isNaN(newAmount)) return alert('請輸入數字');
+
+    showLoading(true, '儲存修改中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'editTransaction',
+                key: currentApiKey,
+                id: id,
+                newAmount: newAmount,
+                newNote: newNote
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('修改成功');
+            closeEditModal();
+            await refreshHistory();
+        } else {
+            showToast('修改失敗：' + result.error);
+        }
+    } catch (err) {
+        showToast('網路錯誤');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function deleteHistory(id) {
+    if (!confirm('確定要刪除這筆紀錄嗎？這會自動恢復該員餘額。')) return;
+
+    showLoading(true, '刪除中...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'deleteTransaction',
+                key: currentApiKey,
+                id: id
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('刪除成功');
+            await refreshHistory();
+        } else {
+            showToast('刪除失敗：' + result.error);
+        }
+    } catch (err) {
+        showToast('網路錯誤');
+    } finally {
+        showLoading(false);
+    }
 }
 
 // --- 輔助工具 ---
@@ -441,7 +695,6 @@ window.onload = function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('history-date-start').value = today;
     document.getElementById('history-date-end').value = today;
-    
     // 漢堡選單邏輯
     const toggle = document.getElementById('menu-toggle');
     const menu = document.getElementById('mobile-menu');

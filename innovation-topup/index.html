@@ -6,6 +6,7 @@
     <title>禾新餐費管理系統</title>
     <link href="https://font.emtech.cc/css/jfOpenHuninn" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'jfopenhuninn', sans-serif !important; }
@@ -41,24 +42,26 @@
                 </button>
                 <!-- 電腦版選單 -->
                 <div class="hidden sm:flex space-x-2">
-                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-dashboard">儀表板</button>
+                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-dashboard">總表</button>
                     <button onclick="switchTab('batch')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-batch">批次輸入</button>
                     <button onclick="switchTab('deposit')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-deposit">人員儲值</button>
+                    <button onclick="switchTab('adjustment')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-adjustment">餘額調整</button>
                     <button onclick="switchTab('history')" class="tab-btn px-4 py-2 rounded-full hover:bg-amber-100" id="tab-history">紀錄查詢</button>
                 </div>
             </div>
             <!-- 手機版下拉選單 -->
             <div id="mobile-menu" class="hidden sm:hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg z-50 overflow-hidden">
                 <div class="flex flex-col">
-                    <button onclick="switchTab('dashboard')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-dashboard">儀表板</button>
+                    <button onclick="switchTab('dashboard')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-dashboard">總表</button>
                     <button onclick="switchTab('batch')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-batch">批次輸入</button>
                     <button onclick="switchTab('deposit')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-deposit">人員儲值</button>
+                    <button onclick="switchTab('adjustment')" class="px-4 py-3 hover:bg-amber-50 text-left border-b" id="mobile-tab-adjustment">餘額調整</button>
                     <button onclick="switchTab('history')" class="px-4 py-3 hover:bg-amber-50 text-left" id="mobile-tab-history">紀錄查詢</button>
                 </div>
             </div>
         </nav>
 
-        <!-- 儀表板 -->
+        <!-- 總表 -->
         <section id="section-dashboard" class="tab-content">
             <div class="flex flex-col space-y-2 mb-4">
                 <h2 class="text-2xl font-bold text-gray-800">人員餘額概況</h2>
@@ -66,6 +69,10 @@
                     <div id="total-balance-container" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold shadow-sm">
                         總計: $<span id="total-balance">0</span>
                     </div>
+                    <button onclick="recalculateBalances()" class="bg-blue-100 text-blue-800 p-2 rounded-lg hover:bg-blue-200 transition shadow-sm" title="重新計算餘額">
+                        <span class="sm:hidden text-xl"><i class="fa-solid fa-calculator"></i></span>
+                        <span class="hidden sm:inline">重新計算餘額</span>
+                    </button>
                     <button onclick="initData()" class="bg-amber-100 text-amber-800 p-2 rounded-lg hover:bg-amber-200 transition shadow-sm" title="重新整理">
                         <span class="sm:hidden text-xl">↺</span>
                         <span class="hidden sm:inline">↺ 重新整理</span>
@@ -116,9 +123,9 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">備註</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style="width: 20%;">姓名</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style="width: 30%;">金額</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap" style="width: 50%;">備註</th>
                                 </tr>
                             </thead>
                             <tbody id="batch-input-table">
@@ -130,6 +137,11 @@
                     <div id="batch-input-cards" class="sm:hidden space-y-4">
                         <!-- 由 JS 動態產生 -->
                     </div>
+                </div>
+                <!-- 批次輸入總計 -->
+                <div class="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 mb-4 flex justify-between items-center">
+                    <span class="font-bold text-blue-800">本次輸入總計：</span>
+                    <span class="text-2xl font-bold text-blue-600">$<span id="batch-total-sum">0</span></span>
                 </div>
                 <div class="flex space-x-2">
                     <button onclick="toBatchStep1()" class="flex-1 bg-gray-200 py-3 rounded-lg font-bold">上一步</button>
@@ -163,17 +175,62 @@
         </section>
 
         <!-- 紀錄查詢 -->
+        <section id="section-adjustment" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-4">餘額調整</h2>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">人員</label>
+                        <select id="adjustment-user" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+                            <!-- 由 JS 動態產生 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">調整金額</label>
+                        <input type="number" id="adjustment-amount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2" placeholder="正數增加餘額，負數扣除餘額">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">項目</label>
+                        <input type="text" id="adjustment-category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2" value="期初調整">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">備註</label>
+                        <input type="text" id="adjustment-note" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2" placeholder="例如：系統啟用前餘額">
+                    </div>
+                    <button onclick="submitAdjustment()" id="btn-submit-adjustment" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg">確認調整</button>
+                </div>
+            </div>
+        </section>
+
         <section id="section-history" class="tab-content hidden">
             <h2 class="text-2xl font-bold mb-4">紀錄查詢</h2>
             <div class="bg-white p-4 rounded-lg shadow mb-4 space-y-2">
-                <select id="history-user" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
-                    <!-- 由 JS 動態產生 -->
-                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="history-user" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                        <!-- 由 JS 動態產生 -->
+                    </select>
+                    <select id="history-category" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                        <option value="全部">全部項目</option>
+                        <!-- 由 JS 動態產生 -->
+                    </select>
+                </div>
                 <div class="grid grid-cols-2 gap-2">
                     <input type="date" id="history-date-start" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
                     <input type="date" id="history-date-end" class="w-full rounded-lg border-gray-300 shadow-sm border p-2">
                 </div>
-                <button onclick="queryHistory()" class="w-full bg-amber-600 text-white px-6 py-2 rounded-lg font-bold">查詢</button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="queryHistory()" class="w-full bg-amber-600 text-white px-6 py-2 rounded-lg font-bold">查詢</button>
+                    <button onclick="refreshHistory()" class="w-full bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300">
+                        <i class="fa-solid fa-rotate-right mr-1"></i>重新整理
+                    </button>
+                </div>
+            </div>
+            <!-- 篩選結果總計 -->
+            <div id="history-summary" class="bg-white p-4 rounded-lg shadow mb-4 hidden">
+                <h3 class="font-bold text-gray-700 mb-2">篩選結果總計：</h3>
+                <div id="history-summary-items" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                    <!-- 由 JS 動態產生 -->
+                </div>
             </div>
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- 電腦版表格 -->
@@ -185,6 +242,7 @@
                             <th class="px-4 py-2 text-left font-medium text-gray-500">類別</th>
                             <th class="px-4 py-2 text-left font-medium text-gray-500">項目</th>
                             <th class="px-4 py-2 text-left font-medium text-gray-500">金額</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-500">操作</th>
                         </tr>
                     </thead>
                     <tbody id="history-table-body" class="divide-y divide-gray-200">
@@ -200,6 +258,44 @@
                 <button onclick="loadMoreHistory()" class="bg-gray-200 text-gray-700 px-8 py-2 rounded-lg hover:bg-gray-300">載入更多...</button>
             </div>
         </section>
+    </div>
+
+    <!-- 修改紀錄彈窗 -->
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm mx-4">
+            <h2 class="text-xl font-bold mb-4">修改紀錄</h2>
+            <input type="hidden" id="edit-id">
+            <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                <div>
+                    <div class="text-gray-500">時間</div>
+                    <div id="edit-time-text" class="font-medium text-gray-800"></div>
+                </div>
+                <div>
+                    <div class="text-gray-500">人員</div>
+                    <div id="edit-name-text" class="font-medium text-gray-800"></div>
+                </div>
+                <div>
+                    <div class="text-gray-500">支出/儲值</div>
+                    <div id="edit-type-text" class="font-medium text-gray-800"></div>
+                </div>
+                <div>
+                    <div class="text-gray-500">項目</div>
+                    <div id="edit-category-text" class="font-medium text-gray-800"></div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-700">金額</label>
+                <input type="number" id="edit-amount" class="w-full border p-2 rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-700">備註</label>
+                <input type="text" id="edit-note" class="w-full border p-2 rounded">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 rounded">取消</button>
+                <button onclick="submitEdit()" class="px-4 py-2 bg-blue-600 text-white rounded">儲存</button>
+            </div>
+        </div>
     </div>
 
     <!-- 載入中遮罩 -->
