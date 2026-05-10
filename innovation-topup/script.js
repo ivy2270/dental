@@ -3,7 +3,7 @@
  */
 
 // --- 請填入您的資訊 ---
-const API_URL = 'https://script.google.com/macros/s/AKfycbwl1YfmcqudkutUsLlZ8Orpw4lVrqEM0qZQdpxnxo2jH0Ju_nGSQhM-UEa7kMcoPaGqlw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwb5dL9YhM26IcD-yimWDlIVvwiXLlgNXU1a01Pgls0bkect1IeV1M-7PFXZ-Hu3d9HlQ/exec';
 // --------------------
 
 let users = [];
