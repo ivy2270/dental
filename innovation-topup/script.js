@@ -3,20 +3,27 @@
  */
 
 // --- 請填入您的資訊 ---
-const API_URL = 'https://script.google.com/macros/s/AKfycbwl1YfmcqudkutUsLlZ8Orpw4lVrqEM0qZQdpxnxo2jH0Ju_nGSQhM-UEa7kMcoPaGqlw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwb5dL9YhM26IcD-yimWDlIVvwiXLlgNXU1a01Pgls0bkect1IeV1M-7PFXZ-Hu3d9HlQ/exec';
 // --------------------
 
-let users = [];
-let categories = [];
-let currentApiKey = '';
-let historyPage = 1;
-let currentHistoryUser = '';
-let historyRequestSeq = 0;
-const historyItemById = {};
+let currentUser = null;
+let logoutTimer = null;
 
 function formatMoney(value) {
     const amount = Number(value) || 0;
     return amount.toLocaleString('zh-TW', { maximumFractionDigits: 2 });
+}
+
+function startLogoutTimer() {
+    if (logoutTimer) clearTimeout(logoutTimer);
+    logoutTimer = setTimeout(() => {
+        logout();
+    }, 30 * 60 * 1000); // 30 minutes
+}
+
+function logout() {
+    sessionStorage.removeItem('user');
+    location.reload();
 }
 
 /**
@@ -27,23 +34,29 @@ async function authenticate() {
     btn.innerHTML = '<span class="animate-pulse">進入系統中...</span>';
     btn.disabled = true;
 
-    const keyInput = document.getElementById('auth-key').value;
-    if (!keyInput) {
-        alert('請輸入金鑰');
+    const name = document.getElementById('auth-name').value;
+    const pass = document.getElementById('auth-pass').value;
+
+    if (!name || !pass) {
+        alert('請輸入姓名與密碼');
         btn.innerHTML = '進入系統';
         btn.disabled = false;
         return;
     }
-    currentApiKey = keyInput;
+
+    currentUser = { name, pass };
     const success = await initData();
     if (success) {
+        sessionStorage.setItem('user', JSON.stringify(currentUser));
+        document.getElementById('user-display').innerText = `使用者: ${name}`;
         document.getElementById('auth-overlay').classList.add('hidden');
         document.getElementById('app').classList.remove('hidden');
+        startLogoutTimer();
     } else {
-        currentApiKey = '';
+        currentUser = null;
         btn.innerHTML = '進入系統';
         btn.disabled = false;
-        alert('金鑰錯誤，請重新輸入');
+        alert('登入失敗，請檢查姓名與密碼');
     }
 }
 
@@ -65,7 +78,7 @@ function showToast(message) {
 async function initData() {
     showLoading(true, '載入中...');
     try {
-        const response = await fetch(`${API_URL}?action=init&key=${encodeURIComponent(currentApiKey)}`);
+        const response = await fetch(`${API_URL}?action=init&name_auth=${encodeURIComponent(currentUser.name)}&pass_auth=${encodeURIComponent(currentUser.pass)}`);
         const data = await response.json();
         if (data.error) {
             return false;
@@ -97,7 +110,8 @@ async function recalculateBalances() {
             method: 'POST',
             body: JSON.stringify({
                 action: 'recalculateBalances',
-                key: currentApiKey
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass
             })
         });
         const result = await res.json();
@@ -354,7 +368,9 @@ async function submitBatch() {
             method: 'POST',
             body: JSON.stringify({
                 action: 'recordTransaction',
-                key: currentApiKey,
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
+                operator: currentUser.name,
                 records: records
             })
         });
@@ -364,6 +380,7 @@ async function submitBatch() {
             await initData();
             toBatchStep1();
             switchTab("dashboard");
+            startLogoutTimer(); // 活動時重設計時器
         } else {
             showToast("提交失敗：" + result.error);
         }
@@ -390,7 +407,9 @@ async function submitDeposit() {
             method: 'POST',
             body: JSON.stringify({
                 action: 'deposit',
-                key: currentApiKey,
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
+                operator: currentUser.name,
                 record: { name, amount, category, note }
             })
         });
@@ -401,6 +420,7 @@ async function submitDeposit() {
             document.getElementById('deposit-note').value = '';
             await initData();
             switchTab('dashboard');
+            startLogoutTimer(); // 活動時重設計時器
         } else {
             showToast("處理失敗：" + result.error);
         }
@@ -431,7 +451,7 @@ async function fetchHistory() {
     const end = document.getElementById('history-date-end').value;
 
     try {
-        const url = `${API_URL}?action=getHistory&name=${encodeURIComponent(user)}&category=${encodeURIComponent(category)}&start=${start}&end=${end}&key=${encodeURIComponent(currentApiKey)}&page=${historyPage}`;
+        const url = `${API_URL}?action=getHistory&name=${encodeURIComponent(user)}&category=${encodeURIComponent(category)}&start=${start}&end=${end}&name_auth=${encodeURIComponent(currentUser.name)}&pass_auth=${encodeURIComponent(currentUser.pass)}&page=${historyPage}`;
         const res = await fetch(url);
         const result = await res.json();
 
@@ -461,7 +481,7 @@ async function fetchHistory() {
 
 async function refreshBalances() {
     try {
-        const response = await fetch(`${API_URL}?action=init&key=${encodeURIComponent(currentApiKey)}`);
+        const response = await fetch(`${API_URL}?action=init&name_auth=${encodeURIComponent(currentUser.name)}&pass_auth=${encodeURIComponent(currentUser.pass)}`);
         const data = await response.json();
         if (!data.error) {
             users = data.users;
@@ -595,7 +615,8 @@ async function submitEdit() {
             method: 'POST',
             body: JSON.stringify({
                 action: 'editTransaction',
-                key: currentApiKey,
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
                 id: id,
                 newAmount: newAmount,
                 newNote: newNote
@@ -606,6 +627,7 @@ async function submitEdit() {
             showToast('修改成功');
             closeEditModal();
             await refreshHistory();
+            startLogoutTimer();
         } else {
             showToast('修改失敗：' + result.error);
         }
@@ -625,7 +647,8 @@ async function deleteHistory(id) {
             method: 'POST',
             body: JSON.stringify({
                 action: 'deleteTransaction',
-                key: currentApiKey,
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
                 id: id
             })
         });
@@ -633,6 +656,7 @@ async function deleteHistory(id) {
         if (result.success) {
             showToast('刪除成功');
             await refreshHistory();
+            startLogoutTimer();
         } else {
             showToast('刪除失敗：' + result.error);
         }
@@ -657,7 +681,22 @@ function showLoading(show, text = '處理中...') {
 }
 
 // 啟動
-window.onload = function() {
+window.onload = async function() {
+    // 檢查 Session
+    const savedUser = sessionStorage.getItem('user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        const success = await initData();
+        if (success) {
+            document.getElementById('user-display').innerText = `使用者: ${currentUser.name}`;
+            document.getElementById('auth-overlay').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            startLogoutTimer();
+        } else {
+            sessionStorage.removeItem('user');
+        }
+    }
+
     const today = new Date();
     const year = today.getFullYear();
     const month = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -679,5 +718,12 @@ window.onload = function() {
         if (menu && !menu.contains(e.target) && !toggle.contains(e.target)) {
             menu.classList.add('hidden');
         }
+    });
+
+    // 監聽活動以重設登出計時器
+    ['mousedown', 'keydown', 'touchstart'].forEach(type => {
+        document.addEventListener(type, () => {
+            if (currentUser) startLogoutTimer();
+        });
     });
 };

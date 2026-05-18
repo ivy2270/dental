@@ -23,10 +23,11 @@ const CONFIG_SHEET = SS.getSheetByName('Config');
 
 function doGet(e) {
   const action = e.parameter.action;
-  const apiKey = e.parameter.key;
+  const name = e.parameter.name_auth;
+  const password = e.parameter.pass_auth;
 
-  if (!verifyApiKey(apiKey)) {
-    return createJsonResponse({ error: 'Unauthorized: Invalid API Key' }, 401);
+  if (!verifyUser(name, password)) {
+    return createJsonResponse({ error: 'Unauthorized: Invalid User or Password' }, 401);
   }
 
   try {
@@ -38,13 +39,13 @@ function doGet(e) {
     }
 
     if (action === 'getHistory') {
-      const name = e.parameter.name || '全部';
+      const targetName = e.parameter.name || '全部';
       const category = e.parameter.category || '全部';
       const start = e.parameter.start;
       const end = e.parameter.end;
       const page = parseInt(e.parameter.page, 10) || 1;
       const pageSize = 100;
-      return createJsonResponse(getHistoryData(name, category, start, end, page, pageSize));
+      return createJsonResponse(getHistoryData(targetName, category, start, end, page, pageSize));
     }
 
     return createJsonResponse({ error: 'Invalid action' }, 400);
@@ -57,18 +58,20 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const action = data.action;
-    const apiKey = data.key;
+    const name = data.name_auth;
+    const password = data.pass_auth;
+    const operator = data.operator || name;
 
-    if (!verifyApiKey(apiKey)) {
-      return createJsonResponse({ error: 'Unauthorized: Invalid API Key' }, 401);
+    if (!verifyUser(name, password)) {
+      return createJsonResponse({ error: 'Unauthorized: Invalid User or Password' }, 401);
     }
 
     if (action === 'recordTransaction') {
-      return createJsonResponse(recordTransactions(data.records || []));
+      return createJsonResponse(recordTransactions(data.records || [], operator));
     }
 
     if (action === 'deposit') {
-      return createJsonResponse(recordDeposit(data.record));
+      return createJsonResponse(recordDeposit(data.record, operator));
     }
 
 
@@ -90,10 +93,12 @@ function doPost(e) {
   }
 }
 
-function verifyApiKey(key) {
+function verifyUser(name, password) {
+  if (!name || !password) return false;
   const config = CONFIG_SHEET.getDataRange().getValues();
-  for (let i = 1; i < config.length; i++) {
-    if (config[i][0] === 'API_KEY' && config[i][1] === key) {
+  const targetKey = 'OPERATOR_' + name;
+  for (let i = 0; i < config.length; i++) {
+    if (config[i][0] === targetKey && config[i][1].toString() === password.toString()) {
       return true;
     }
   }
@@ -184,7 +189,7 @@ function parseDateFilter(value, isEndOfDay) {
     : new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
 }
 
-function recordTransactions(records) {
+function recordTransactions(records, operator) {
   const timestamp = new Date();
   const rows = records
     .map(r => {
@@ -198,7 +203,8 @@ function recordTransactions(records) {
         '支出',
         r.category,
         -Math.abs(amount),
-        r.note || ''
+        r.note || '',
+        operator || ''
       ];
     })
     .filter(Boolean);
@@ -213,7 +219,7 @@ function recordTransactions(records) {
   return { success: true, count: rows.length };
 }
 
-function recordDeposit(r) {
+function recordDeposit(r, operator) {
   if (!r || !r.name) {
     return { success: false, error: '缺少人員' };
   }
@@ -233,7 +239,8 @@ function recordDeposit(r) {
     type,
     category,
     amount,
-    r.note || ''
+    r.note || '',
+    operator || ''
   ]);
 
   updateUserBalance(r.name, amount);
