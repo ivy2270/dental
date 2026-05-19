@@ -152,7 +152,8 @@ function getHistoryData(name, category, start, end, page, pageSize) {
         type: rowType,
         category: rowCategory,
         amount: rowAmount,
-        note: data[i][6] || ''
+        note: data[i][6] || '',
+        operator: data[i][7] || ''
       });
 
       if (!summary[rowCategory]) summary[rowCategory] = 0;

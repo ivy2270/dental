@@ -8,6 +8,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwb5dL9YhM26IcD-yimWDlI
 
 let currentUser = null;
 let logoutTimer = null;
+let users = [];
+let categories = [];
+let historyPage = 1;
+let historyItemById = {};
+let historyRequestSeq = 0;
 
 function formatMoney(value) {
     const amount = Number(value) || 0;
@@ -541,6 +546,7 @@ function renderHistory(data) {
             <td class="px-4 py-2">${item.type}</td>
             <td class="px-4 py-2">${item.category} ${item.note ? `(${item.note})` : ''}</td>
             <td class="px-4 py-2 ${amountClass}">${formatMoney(amount)}</td>
+            <td class="px-4 py-2 text-gray-500">${item.operator || ''}</td>
             <td class="px-4 py-2 space-x-2">
                 <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-gray-500" title="修改" aria-label="修改">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -565,6 +571,7 @@ function renderHistory(data) {
                     <span>${item.category} ${item.note ? `(${item.note})` : ''}</span>
                     <span>${item.timestamp}</span>
                 </div>
+                <div class="text-xs text-gray-400">操作人: ${item.operator || ''}</div>
                 <div class="flex justify-end space-x-4 pt-1 border-t mt-1 text-sm">
                     <button onclick="openEditModal('${item.id}')" class="inline-flex h-8 w-8 items-center justify-center rounded text-gray-500" title="修改" aria-label="修改">
                         <i class="fa-solid fa-pen-to-square"></i>
