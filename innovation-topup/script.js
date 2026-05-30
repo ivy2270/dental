@@ -221,15 +221,29 @@ function renderUserSelections() {
 function renderCategoryOptions() {
     const select = document.getElementById('batch-category');
     const historySelect = document.getElementById('history-category');
+    const editCategorySelect = document.getElementById('edit-category');
+
     select.innerHTML = '';
     historySelect.innerHTML = '<option value="全部">全部項目</option>';
-    const expenseCategories = categories.filter(c => c !== '儲值' && c !== '期初設定');
+    if (editCategorySelect) editCategorySelect.innerHTML = '';
+
+    const expenseCategories = categories.filter(c => c !== '儲值' && c !== '初始設定');
     expenseCategories.forEach(c => {
         if (select) select.innerHTML += `<option value="${c}">${c}</option>`;
     });
     categories.forEach(c => {
         if (historySelect) historySelect.innerHTML += `<option value="${c}">${c}</option>`;
+        if (editCategorySelect) editCategorySelect.innerHTML += `<option value="${c}">${c}</option>`;
     });
+
+    // edit modal 的人員下拉一併填充
+    const editNameSelect = document.getElementById('edit-name');
+    if (editNameSelect) {
+        editNameSelect.innerHTML = '';
+        users.forEach(u => {
+            editNameSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+        });
+    }
 }
 
 // --- 批次輸入邏輯 ---
@@ -596,11 +610,39 @@ function openEditModal(id) {
     const amount = Number(item.amount) || 0;
 
     document.getElementById('edit-id').value = item.id;
+
+    // 日期：填入目前日期（timestamp 格式為 "yyyy-MM-dd HH:mm"）
     setText('edit-time-text', item.timestamp);
-    setText('edit-name-text', item.name);
-    setText('edit-type-text', item.type);
-    setText('edit-category-text', item.category);
-    document.getElementById('edit-amount').value = Math.abs(amount);
+    const datePart = item.timestamp ? item.timestamp.substring(0, 10) : '';
+    document.getElementById('edit-date').value = datePart;
+
+    // 人員下拉：選中目前人員（若已停用則補一個選項）
+    const nameSelect = document.getElementById('edit-name');
+    nameSelect.value = item.name;
+    if (nameSelect.value !== item.name) {
+        const opt = document.createElement('option');
+        opt.value = item.name;
+        opt.textContent = item.name + '（原始）';
+        nameSelect.prepend(opt);
+        nameSelect.value = item.name;
+    }
+
+    // 支出 / 儲值
+    document.getElementById('edit-type').value = item.type || '支出';
+
+    // 項目下拉：選中目前類別（若不在清單則補選項）
+    const catSelect = document.getElementById('edit-category');
+    catSelect.value = item.category;
+    if (catSelect.value !== item.category) {
+        const opt = document.createElement('option');
+        opt.value = item.category;
+        opt.textContent = item.category;
+        catSelect.prepend(opt);
+        catSelect.value = item.category;
+    }
+
+    // 金額直接顯示原始值（含正負），讓使用者自己決定正負
+    document.getElementById('edit-amount').value = amount;
     document.getElementById('edit-note').value = item.note || '';
     document.getElementById('edit-modal').classList.remove('hidden');
 }
@@ -610,23 +652,34 @@ function closeEditModal() {
 }
 
 async function submitEdit() {
-    const id = document.getElementById('edit-id').value;
-    const newAmount = parseFloat(document.getElementById('edit-amount').value);
-    const newNote = document.getElementById('edit-note').value;
+    const id       = document.getElementById('edit-id').value;
+    const newDate  = document.getElementById('edit-date').value;
+    const newName  = document.getElementById('edit-name').value;
+    const newType  = document.getElementById('edit-type').value;
+    const newCat   = document.getElementById('edit-category').value;
+    const newAmt   = parseFloat(document.getElementById('edit-amount').value);
+    const newNote  = document.getElementById('edit-note').value;
 
-    if (isNaN(newAmount)) return alert('請輸入數字');
+    if (!newDate) return alert('請選擇日期');
+    if (!newName) return alert('請選擇人員');
+    if (isNaN(newAmt)) return alert('請輸入有效的金額');
 
     showLoading(true, '儲存修改中...');
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
-                action: 'editTransaction',
-                name_auth: currentUser.name,
-                pass_auth: currentUser.pass,
-                id: id,
-                newAmount: newAmount,
-                newNote: newNote
+                action:      'editTransaction',
+                name_auth:   currentUser.name,
+                pass_auth:   currentUser.pass,
+                operator:    currentUser.name,
+                id:          id,
+                newDate:     newDate,
+                newName:     newName,
+                newType:     newType,
+                newCategory: newCat,
+                newAmount:   newAmt,
+                newNote:     newNote
             })
         });
         const result = await res.json();
@@ -646,7 +699,7 @@ async function submitEdit() {
 }
 
 async function deleteHistory(id) {
-    if (!confirm('確定要刪除這筆紀錄嗎？這會自動恢復該員餘額。')) return;
+    if (!confirm('確定要刪除這筆紀錄嗎？\n\n刪除後將從主記錄移除，但完整內容會保留在 EditLog 工作表中可供查詢。')) return;
 
     showLoading(true, '刪除中...');
     try {
