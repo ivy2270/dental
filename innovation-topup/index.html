@@ -236,35 +236,50 @@
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm mx-4">
             <h2 class="text-xl font-bold mb-4">修改紀錄</h2>
             <input type="hidden" id="edit-id">
-            <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
-                <div>
-                    <div class="text-gray-500">時間</div>
-                    <div id="edit-time-text" class="font-medium text-gray-800"></div>
-                </div>
-                <div>
-                    <div class="text-gray-500">人員</div>
-                    <div id="edit-name-text" class="font-medium text-gray-800"></div>
-                </div>
-                <div>
-                    <div class="text-gray-500">支出/儲值</div>
-                    <div id="edit-type-text" class="font-medium text-gray-800"></div>
-                </div>
-                <div>
-                    <div class="text-gray-500">項目</div>
-                    <div id="edit-category-text" class="font-medium text-gray-800"></div>
-                </div>
+
+            <!-- 日期（可修改，時間保留原始） -->
+            <div class="mb-3">
+                <label class="block text-sm text-gray-700 mb-1">日期</label>
+                <input type="date" id="edit-date" class="w-full border p-2 rounded text-sm">
+                <div class="text-xs text-gray-400 mt-1">原始時間：<span id="edit-time-text"></span>　修改後僅變更日期，時間保留原始</div>
             </div>
+
+            <!-- 人員 -->
+            <div class="mb-3">
+                <label class="block text-sm text-gray-700 mb-1">人員</label>
+                <select id="edit-name" class="w-full border p-2 rounded text-sm"></select>
+            </div>
+
+            <!-- 支出 / 儲值 -->
+            <div class="mb-3">
+                <label class="block text-sm text-gray-700 mb-1">支出 / 儲值</label>
+                <select id="edit-type" class="w-full border p-2 rounded text-sm">
+                    <option value="支出">支出</option>
+                    <option value="儲值">儲值</option>
+                </select>
+            </div>
+
+            <!-- 項目 -->
+            <div class="mb-3">
+                <label class="block text-sm text-gray-700 mb-1">項目</label>
+                <select id="edit-category" class="w-full border p-2 rounded text-sm"></select>
+            </div>
+
+            <!-- 金額 -->
+            <div class="mb-3">
+                <label class="block text-sm text-gray-700 mb-1">金額（支出請輸入負數，儲值請輸入正數）</label>
+                <input type="number" id="edit-amount" class="w-full border p-2 rounded text-sm">
+            </div>
+
+            <!-- 備註 -->
             <div class="mb-4">
-                <label class="block text-sm text-gray-700">金額</label>
-                <input type="number" id="edit-amount" class="w-full border p-2 rounded">
+                <label class="block text-sm text-gray-700 mb-1">備註</label>
+                <input type="text" id="edit-note" class="w-full border p-2 rounded text-sm">
             </div>
-            <div class="mb-4">
-                <label class="block text-sm text-gray-700">備註</label>
-                <input type="text" id="edit-note" class="w-full border p-2 rounded">
-            </div>
+
             <div class="flex justify-end space-x-2">
                 <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 rounded">取消</button>
-                <button onclick="submitEdit()" class="px-4 py-2 bg-blue-600 text-white rounded">儲存</button>
+                <button onclick="submitEdit()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">儲存</button>
             </div>
         </div>
     </div>
