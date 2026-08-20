@@ -1,0 +1,173 @@
+/* Custom styles for 禾新收支管理系統 — 櫻花粉紅 x 奶油粉黃 */
+
+:root {
+    --sakura-pink: #FFB7C5;
+    --sakura-pink-deep: #FF9AAE;
+    --sakura-pink-deeper: #FF7F98;
+    --sakura-pink-light: #FFE6EC;
+    --cream-yellow: #FFF1B5;
+    --cream-yellow-deep: #FFE68A;
+    --cream-yellow-deeper: #FFDB61;
+    --cream-yellow-light: #FFF7DC;
+    --cocoa-brown: #3D262A;
+    --berry-red: #7A3B4D;
+    --cream-white: #FFFDF9;
+}
+
+html, body {
+    min-height: 100%;
+}
+
+body {
+    background: linear-gradient(160deg, var(--sakura-pink-light) 0%, var(--cream-yellow-light) 100%);
+    background-attachment: fixed;
+    color: var(--cocoa-brown);
+}
+
+/* 登入頁背景也套用同一色調（淺色） */
+#auth-overlay {
+    background: linear-gradient(160deg, var(--sakura-pink-light) 0%, var(--cream-yellow-light) 100%) !important;
+}
+
+/* ── 分頁按鈕（如仍保留使用可延伸）── */
+.tab-btn.active {
+    background-color: var(--sakura-pink) !important;
+    color: var(--cocoa-brown);
+}
+
+.tab-btn {
+    transition: all 0.3s;
+    font-weight: bold;
+    border-radius: 9999px;
+}
+
+/* ── 覆蓋預設藍色，統一改為粉紅/粉黃系 ── */
+.bg-blue-500, .bg-blue-600 {
+    background-color: var(--berry-red) !important;
+    color: #fff !important;
+}
+.hover\:bg-blue-700:hover {
+    background-color: #602c3a !important;
+}
+.text-blue-500, .text-blue-600, .text-blue-800 {
+    color: var(--berry-red) !important;
+}
+.bg-blue-100 {
+    background-color: var(--cream-yellow) !important;
+    color: var(--cocoa-brown) !important;
+}
+.hover\:bg-blue-200:hover {
+    background-color: var(--cream-yellow-deep) !important;
+}
+
+/* ── 總金額卡片（用深一階的粉紅/粉黃，跟淺色背景拉開層次） ── */
+.total-balance-card {
+    background: linear-gradient(135deg, var(--sakura-pink-deep) 0%, var(--cream-yellow-deep) 100%);
+    border-radius: 16px;
+    box-shadow: 0 4px 10px -2px rgba(122, 59, 77, 0.25);
+}
+.total-balance-label {
+    color: var(--berry-red);
+    font-weight: bold;
+}
+.total-balance-amount {
+    color: var(--cocoa-brown);
+}
+
+/* ── 收入 / 支出 按鈕（比背景更深一階，確保在淺粉背景上仍然明顯） ── */
+.btn-income {
+    background-color: var(--cream-yellow-deep);
+    color: var(--cocoa-brown);
+    border: 2px solid var(--cream-yellow-deeper);
+    transition: all 0.2s;
+}
+.btn-income:hover, .btn-income.active {
+    background-color: var(--cream-yellow-deeper);
+}
+.btn-expense {
+    background-color: var(--sakura-pink-deep);
+    color: var(--cocoa-brown);
+    border: 2px solid var(--sakura-pink-deeper);
+    transition: all 0.2s;
+}
+.btn-expense:hover, .btn-expense.active {
+    background-color: var(--sakura-pink-deeper);
+}
+
+/* ── 輸入表單底色：跟目前選的收入/支出按鈕同色系，一眼辨識 ── */
+#entry-form.entry-form-income {
+    background-color: var(--cream-yellow);
+    border: 2px solid var(--cream-yellow-deep);
+}
+#entry-form.entry-form-expense {
+    background-color: var(--sakura-pink);
+    border: 2px solid var(--sakura-pink-deep);
+}
+#entry-form input[type="text"],
+#entry-form input[type="number"] {
+    background-color: #fff;
+}
+
+/* ── 收入 / 支出 金額文字 ── */
+.amount-income {
+    color: var(--cocoa-brown);
+    font-weight: bold;
+}
+.amount-expense {
+    color: var(--berry-red);
+    font-weight: bold;
+}
+
+/* ── 卡片 / 區塊 ── */
+.user-card, .record-card {
+    transition: transform 0.2s;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid var(--cream-yellow-deep);
+    padding: 10px !important;
+}
+
+.record-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.balance-negative {
+    color: var(--berry-red);
+    font-weight: bold;
+}
+
+.card-panel {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px -1px rgba(61, 38, 42, 0.08);
+    border: 1px solid #ffe9ee;
+}
+
+/* ── Toast 通知樣式 ── */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+.toast {
+    background: var(--cocoa-brown);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-top: 10px;
+    animation: fadeIn 0.3s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── loading spinner ── */
+.animate-spin {
+    border-color: var(--berry-red) !important;
+    border-top-color: transparent !important;
+}
+
+/* ── 標題文字 ── */
+h1, h2, h3 {
+    color: var(--cocoa-brown);
+}
