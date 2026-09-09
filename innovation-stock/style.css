@@ -1,0 +1,119 @@
+/* Custom styles for 診所庫存管理系統 */
+
+:root {
+    /* 主色調：#355c6d（深藍綠）＋ #b4b6b5（灰） */
+    --primary-50:  #eef3f4;
+    --primary-100: #d7e2e5;
+    --primary-200: #bfd2d7;
+    --primary-500: #4c7385;
+    --primary-600: #355c6d;
+    --primary-700: #274752;
+    --primary-800: #1d363f;
+    --grey:        #b4b6b5;
+    --grey-light:  #e6e7e6;
+
+    /* 進貨（金褐色系） */
+    --stockin-50:  #faf5ea;
+    --stockin-100: #f0e2c0;
+    --stockin-500: #c69a4c;
+    --stockin-600: #a97d3f;
+    --stockin-700: #8a6530;
+    --stockin-800: #6b4f1f;
+    --stockin-300: #d9b876;
+
+    /* 領用（磚紅色系） */
+    --stockout-50:  #fbeceb;
+    --stockout-100: #f3d6d3;
+    --stockout-500: #b85950;
+    --stockout-600: #a4453c;
+    --stockout-700: #832f27;
+    --stockout-800: #6e2b25;
+    --stockout-300: #dba49e;
+}
+
+body {
+    background-color: var(--primary-50);
+}
+
+.tab-btn {
+    transition: all 0.3s;
+    font-weight: bold;
+    border-radius: 9999px; /* rounded-full */
+    color: var(--primary-800);
+}
+
+/* 選中頁籤：背景上色＋文字白色，確保對比度足夠 */
+.tab-btn.active {
+    color: #ffffff !important;
+}
+
+.user-card {
+    transition: transform 0.2s;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid var(--grey);
+    padding: 10px !important;
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.text-stockin  { color: var(--stockin-700); }
+.text-stockout { color: var(--stockout-700); }
+
+.balance-negative {
+    color: #b3261e; /* 警示紅，維持與主題色區隔以利辨識 */
+    font-weight: bold;
+}
+
+/* 進貨／領用頁籤：整頁背景色明顯區隔 */
+#section-stockin {
+    background-color: var(--stockin-50);
+    border-radius: 16px;
+    padding: 16px;
+}
+
+#section-stockout {
+    background-color: var(--stockout-50);
+    border-radius: 16px;
+    padding: 16px;
+}
+
+#section-stockin input:focus,
+#section-stockin select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--stockin-300);
+    border-color: var(--stockin-600);
+}
+
+#section-stockout input:focus,
+#section-stockout select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--stockout-300);
+    border-color: var(--stockout-600);
+}
+
+/* Toast 通知樣式 */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+.toast {
+    background: var(--primary-800);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-top: 10px;
+    animation: fadeIn 0.3s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* loading spinner */
+.animate-spin {
+    border-color: var(--primary-600) !important;
+    border-top-color: transparent !important;
+}
