@@ -8,6 +8,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'jfOpenHuninn', sans-serif !important; }
@@ -277,7 +278,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-2 text-left font-medium text-gray-500">品項</th>
-                            <th class="px-4 py-2 text-left font-medium text-gray-500">分類</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-500">單位</th>
                             <th class="px-4 py-2 text-right font-medium text-gray-500">進貨</th>
                             <th class="px-4 py-2 text-right font-medium text-gray-500">領用</th>
                             <th class="px-4 py-2 text-right font-medium text-gray-500">淨變化</th>
@@ -298,7 +299,7 @@
                 <h3 class="font-bold text-gray-700 mb-2">新增品項</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <input type="text" id="new-item-name" placeholder="品項名稱" class="border rounded-lg p-2">
-                    <input type="text" id="new-item-category" placeholder="分類" class="border rounded-lg p-2">
+                    <input type="text" id="new-item-category" list="category-datalist" placeholder="分類" class="border rounded-lg p-2">
                     <input type="text" id="new-item-unit" placeholder="單位" class="border rounded-lg p-2">
                     <label class="flex items-center space-x-2 p-2">
                         <input type="checkbox" id="new-item-require-doctor" class="h-5 w-5">
@@ -365,7 +366,7 @@
             </div>
             <div class="mb-3">
                 <label class="block text-sm text-gray-700 mb-1">分類</label>
-                <input type="text" id="edit-item-category" class="w-full border p-2 rounded text-sm">
+                <input type="text" id="edit-item-category" list="category-datalist" class="w-full border p-2 rounded text-sm">
             </div>
             <div class="mb-3">
                 <label class="block text-sm text-gray-700 mb-1">單位</label>
@@ -384,8 +385,9 @@
         </div>
     </div>
 
-    <!-- 全域醫師搜尋 datalist -->
+    <!-- 全域醫師搜尋 / 分類建議 datalist -->
     <datalist id="doctor-datalist"></datalist>
+    <datalist id="category-datalist"></datalist>
 
     <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-xl text-center">

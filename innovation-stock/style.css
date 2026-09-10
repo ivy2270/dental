@@ -60,6 +60,19 @@ body {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.drag-handle {
+    cursor: grab;
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+.sortable-ghost {
+    opacity: 0.4;
+}
+.sortable-chosen {
+    background-color: var(--primary-50) !important;
+}
+
 .text-stockin  { color: var(--stockin-700); }
 .text-stockout { color: var(--stockout-700); }
 

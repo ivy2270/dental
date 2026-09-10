@@ -19,6 +19,32 @@ let historyItemById = {};
 let historyRequestSeq = 0;
 
 let dailyCheckItems = []; // 目前載入的盤點清單（含既有記錄）
+let sortableInstances = []; // 品項管理頁的拖曳排序實例，重繪前需先銷毀
+
+/**
+ * 依 category 將已排序好的品項陣列分組（保留原陣列順序，不重新排序）
+ */
+function groupByCategory(list) {
+    const groups = {};
+    const order = [];
+    list.forEach(item => {
+        const cat = item.category || '未分類';
+        if (!groups[cat]) { groups[cat] = []; order.push(cat); }
+        groups[cat].push(item);
+    });
+    return { order, groups };
+}
+
+/**
+ * 品項顯示名稱：分類 + 品項名稱（查不到品項時 fallback 回傳原始 ID 或提供的名稱）
+ */
+function itemDisplayName(itemId, fallbackName) {
+    const item = itemById[itemId];
+    if (item) {
+        return item.category ? `${item.category} - ${item.itemName}` : item.itemName;
+    }
+    return fallbackName || itemId;
+}
 
 function formatQty(value) {
     const amount = Number(value) || 0;
@@ -108,6 +134,7 @@ async function initData() {
 
         renderDashboard();
         renderDoctorDatalist();
+        renderCategoryDatalist();
         renderItemSelectionLists();
         renderHistoryFilters();
         renderItemsManageList();
@@ -157,7 +184,7 @@ function renderDashboard() {
     container.innerHTML = '';
 
     const byCategory = {};
-    items.forEach(item => {
+    items.filter(item => item.isActive).forEach(item => {
         const cat = item.category || '未分類';
         if (!byCategory[cat]) byCategory[cat] = [];
         byCategory[cat].push(item);
@@ -221,15 +248,29 @@ async function recalculateQuantities() {
 function renderDoctorDatalist() {
     const dl = document.getElementById('doctor-datalist');
     if (!dl) return;
-    dl.innerHTML = doctors.map(d => `<option value="${d.doctorName}">`).join('');
+    dl.innerHTML = doctors.filter(d => d.isActive).map(d => `<option value="${d.doctorName}">`).join('');
+}
+
+function renderCategoryDatalist() {
+    const dl = document.getElementById('category-datalist');
+    if (!dl) return;
+    const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+    dl.innerHTML = categories.map(c => `<option value="${c}">`).join('');
 }
 
 function renderHistoryFilters() {
     const itemSelect = document.getElementById('history-item');
     const doctorSelect = document.getElementById('history-doctor');
+
     if (itemSelect) {
+        const { order, groups } = groupByCategory(items);
         itemSelect.innerHTML = '<option value="全部">全部品項</option>' +
-            items.map(i => `<option value="${i.itemId}">${i.itemName}</option>`).join('');
+            order.map(cat => `
+                <optgroup label="${cat}">
+                    <option value="CAT:${cat}">整個分類：${cat}</option>
+                    ${groups[cat].map(i => `<option value="${i.itemId}">${i.itemName}</option>`).join('')}
+                </optgroup>
+            `).join('');
     }
     if (doctorSelect) {
         doctorSelect.innerHTML = '<option value="全部">全部醫師</option>' +
@@ -249,11 +290,16 @@ function renderItemSelectionLists() {
     ['stockin', 'stockout'].forEach(prefix => {
         const container = document.getElementById(`${prefix}-item-list`);
         if (!container) return;
-        container.innerHTML = activeItemsSorted().map(item => `
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer border">
-                <input type="checkbox" class="item-checkbox-${prefix} h-5 w-5" value="${item.itemId}">
-                <span class="text-sm">${item.itemName} <span class="text-gray-400">(${formatQty(item.currentQty)} ${item.unit || ''})</span></span>
-            </label>
+
+        const { order, groups } = groupByCategory(activeItemsSorted());
+        container.innerHTML = order.map(cat => `
+            <div class="col-span-full text-sm font-bold text-gray-500 border-b pb-1 mb-1 mt-3 first:mt-0">${cat}</div>
+            ${groups[cat].map(item => `
+                <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer border">
+                    <input type="checkbox" class="item-checkbox-${prefix} h-5 w-5" value="${item.itemId}">
+                    <span class="text-sm">${item.itemName} <span class="text-gray-400">(${formatQty(item.currentQty)} ${item.unit || ''})</span></span>
+                </label>
+            `).join('')}
         `).join('');
     });
 }
@@ -398,38 +444,46 @@ async function loadDailyCheck() {
 
 function renderDailyCheckList() {
     const container = document.getElementById('dailycheck-list');
-    container.innerHTML = dailyCheckItems.map(item => {
-        const checked = item.checked;
-        const isCorrect = checked ? checked.isCorrect : true;
-        const note = checked ? checked.note : '';
-        const actualQty = checked && checked.actualQty != null ? checked.actualQty : '';
-        const checkedInfo = checked ? `<div class="text-xs text-gray-400 mt-1">上次由 ${checked.checkedBy} 於 ${checked.timestamp} 更新</div>` : '';
+    const { order, groups } = groupByCategory(dailyCheckItems);
+    container.innerHTML = order.map(cat => `
+        <div class="mt-4 first:mt-0">
+            <div class="text-sm font-bold text-gray-500 border-b pb-1 mb-2">${cat}</div>
+            <div class="space-y-2">${groups[cat].map(dailyCheckRowHtml).join('')}</div>
+        </div>
+    `).join('');
+}
 
-        return `
-            <div class="bg-white p-3 rounded-lg shadow dc-row" data-item-id="${item.itemId}">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：${formatQty(item.currentQty)} ${item.unit || ''})</span></div>
-                        ${checkedInfo}
-                    </div>
-                    <label class="flex items-center space-x-1">
-                        <input type="checkbox" class="dc-correct h-5 w-5" ${isCorrect ? 'checked' : ''} onchange="toggleDcCorrect(this)">
-                        <span class="text-sm">正確</span>
-                    </label>
+function dailyCheckRowHtml(item) {
+    const checked = item.checked;
+    const isCorrect = checked ? checked.isCorrect : true;
+    const note = checked ? checked.note : '';
+    const actualQty = checked && checked.actualQty != null ? checked.actualQty : '';
+    const checkedInfo = checked ? `<div class="text-xs text-gray-400 mt-1">上次由 ${checked.checkedBy} 於 ${checked.timestamp} 更新</div>` : '';
+
+    return `
+        <div class="bg-white p-3 rounded-lg shadow dc-row" data-item-id="${item.itemId}">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：${formatQty(item.currentQty)} ${item.unit || ''})</span></div>
+                    ${checkedInfo}
                 </div>
-                <div class="dc-detail grid grid-cols-2 gap-2 mt-2 ${isCorrect ? 'hidden' : ''}">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">實際盤點數量</label>
-                        <input type="number" step="any" class="dc-actual w-full border rounded p-2 text-sm" value="${actualQty}">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">備註</label>
-                        <input type="text" class="dc-note w-full border rounded p-2 text-sm" value="${note}">
-                    </div>
+                <label class="flex items-center space-x-1">
+                    <input type="checkbox" class="dc-correct h-5 w-5" ${isCorrect ? 'checked' : ''} onchange="toggleDcCorrect(this)">
+                    <span class="text-sm">正確</span>
+                </label>
+            </div>
+            <div class="dc-detail grid grid-cols-2 gap-2 mt-2 ${isCorrect ? 'hidden' : ''}">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">實際盤點數量</label>
+                    <input type="number" step="any" class="dc-actual w-full border rounded p-2 text-sm" value="${actualQty}">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">備註</label>
+                    <input type="text" class="dc-note w-full border rounded p-2 text-sm" value="${note}">
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+    `;
 }
 
 function toggleDcCorrect(checkbox) {
@@ -546,7 +600,7 @@ function renderHistory(data) {
 
     data.forEach(item => {
         historyItemById[item.id] = item;
-        const itemName = itemById[item.itemId] ? itemById[item.itemId].itemName : item.itemId;
+        const itemName = itemDisplayName(item.itemId, item.itemId);
         const doctorName = item.doctorId && doctorById[item.doctorId] ? doctorById[item.doctorId].doctorName : '';
         const typeClass = item.type === '領用' ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold';
 
@@ -612,7 +666,7 @@ function renderHistorySummary(summary) {
     const itemsContainer = document.getElementById('history-summary-items');
     itemsContainer.innerHTML = summary.items.map(it => `
         <div class="bg-gray-50 p-2 rounded text-center border">
-            <div class="text-xs text-gray-500">${it.itemName}</div>
+            <div class="text-xs text-gray-500">${itemDisplayName(it.itemId, it.itemName)}</div>
             <div class="font-bold text-gray-800">進 <span class="text-stockin">${formatQty(it.stockIn)}</span> / 領 <span class="text-stockout">${formatQty(it.stockOut)}</span></div>
         </div>
     `).join('');
@@ -622,7 +676,7 @@ function openEditModal(id) {
     const item = historyItemById[id];
     if (!item) { showToast('找不到這筆記錄，請重新整理後再試'); return; }
 
-    const itemName = itemById[item.itemId] ? itemById[item.itemId].itemName : item.itemId;
+    const itemName = itemDisplayName(item.itemId, item.itemId);
     document.getElementById('edit-id').value = item.id;
     document.getElementById('edit-item-type-display').innerText = `${itemName}（${item.type}）`;
 
@@ -759,15 +813,24 @@ async function queryStats() {
 
 function renderItemStats(list) {
     const tbody = document.getElementById('stats-item-table-body');
-    tbody.innerHTML = list.map(i => `
-        <tr>
-            <td class="px-4 py-2">${i.itemName}</td>
-            <td class="px-4 py-2 text-gray-500">${i.category || ''}</td>
-            <td class="px-4 py-2 text-right text-emerald-600">${formatQty(i.stockIn)}</td>
-            <td class="px-4 py-2 text-right text-rose-600">${formatQty(i.stockOut)}</td>
-            <td class="px-4 py-2 text-right font-bold">${formatQty(i.netChange)}</td>
-        </tr>
-    `).join('') || `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-400">查無資料</td></tr>`;
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-400">查無資料</td></tr>`;
+        return;
+    }
+
+    const { order, groups } = groupByCategory(list);
+    tbody.innerHTML = order.map(cat => `
+        <tr><td colspan="5" class="bg-gray-50 px-4 py-1 font-bold text-gray-600 text-xs">${cat}</td></tr>
+        ${groups[cat].map(i => `
+            <tr>
+                <td class="px-4 py-2">${i.itemName}</td>
+                <td class="px-4 py-2 text-gray-400 text-xs">${i.unit || ''}</td>
+                <td class="px-4 py-2 text-right text-emerald-600">${formatQty(i.stockIn)}</td>
+                <td class="px-4 py-2 text-right text-rose-600">${formatQty(i.stockOut)}</td>
+                <td class="px-4 py-2 text-right font-bold">${formatQty(i.netChange)}</td>
+            </tr>
+        `).join('')}
+    `).join('');
 }
 
 function renderDoctorStats(list) {
@@ -783,7 +846,7 @@ function renderDoctorStats(list) {
                 <span class="text-rose-600">共 ${formatQty(d.totalQty)}</span>
             </div>
             <div class="mt-2 text-sm text-gray-600 space-y-1">
-                ${d.items.map(it => `<div class="flex justify-between"><span>${it.itemName}</span><span>${formatQty(it.qty)}</span></div>`).join('')}
+                ${d.items.map(it => `<div class="flex justify-between"><span>${itemDisplayName(it.itemId, it.itemName)}</span><span>${formatQty(it.qty)}</span></div>`).join('')}
             </div>
         </div>
     `).join('');
@@ -796,25 +859,115 @@ function renderDoctorStats(list) {
 function renderItemsManageList() {
     const container = document.getElementById('items-manage-list');
     if (!container) return;
-    container.innerHTML = items.map(item => `
-        <div class="bg-white p-3 rounded-lg shadow flex justify-between items-center ${!item.isActive ? 'opacity-50' : ''}">
-            <div>
-                <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">${item.category || ''} / ${item.unit || ''}</span></div>
-                <div class="text-xs text-gray-500">
-                    ${item.requireDoctor ? '<span class="text-rose-600">領用需選醫師</span>' : '<span>領用免填醫師</span>'}
-                    ${!item.isActive ? ' · 已停用' : ''}
-                </div>
-            </div>
-            <div class="space-x-2">
-                <button onclick="openEditItemModal('${item.itemId}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-gray-500" title="修改">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-                <button onclick="toggleItemActive('${item.itemId}', ${!item.isActive})" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-100 text-gray-500" title="${item.isActive ? '停用' : '啟用'}">
-                    <i class="fa-solid ${item.isActive ? 'fa-eye-slash' : 'fa-eye'}"></i>
-                </button>
+
+    sortableInstances.forEach(inst => inst.destroy());
+    sortableInstances = [];
+
+    const { order, groups } = groupByCategory(items);
+
+    container.innerHTML = `<div id="items-manage-categories">${order.map(cat => `
+        <div class="mb-4" data-category="${cat}">
+            <h3 class="text-sm font-bold text-gray-500 border-b pb-1 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-grip-lines drag-handle category-drag-handle text-gray-300" title="拖曳排序分類"></i>
+                <span>${cat}</span>
+            </h3>
+            <div class="items-sort-group space-y-2" data-category="${cat}">
+                ${groups[cat].map(item => `
+                    <div class="bg-white p-3 rounded-lg shadow flex items-center gap-2 ${!item.isActive ? 'opacity-50' : ''}" data-item-id="${item.itemId}">
+                        <i class="fa-solid fa-grip-vertical drag-handle text-gray-300 px-1" title="拖曳排序"></i>
+                        <div class="flex-1">
+                            <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">${item.unit || ''}</span></div>
+                            <div class="text-xs text-gray-500">
+                                ${item.requireDoctor ? '<span class="text-rose-600">領用需選醫師</span>' : '<span>領用免填醫師</span>'}
+                                ${!item.isActive ? ' · 已停用' : ''}
+                            </div>
+                        </div>
+                        <div class="space-x-2">
+                            <button onclick="openEditItemModal('${item.itemId}')" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-blue-50 text-gray-500" title="修改">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="toggleItemActive('${item.itemId}', ${!item.isActive})" class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-100 text-gray-500" title="${item.isActive ? '停用' : '啟用'}">
+                                <i class="fa-solid ${item.isActive ? 'fa-eye-slash' : 'fa-eye'}"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
-    `).join('');
+    `).join('')}</div>`;
+
+    const categoriesContainer = document.getElementById('items-manage-categories');
+    const categoriesSortable = Sortable.create(categoriesContainer, {
+        handle: '.category-drag-handle',
+        animation: 150,
+        onEnd: function () {
+            const categories = Array.from(categoriesContainer.children).map(el => el.dataset.category);
+            persistCategoryOrder(categories);
+        }
+    });
+    sortableInstances.push(categoriesSortable);
+
+    document.querySelectorAll('.items-sort-group').forEach(group => {
+        const inst = Sortable.create(group, {
+            handle: '.drag-handle:not(.category-drag-handle)',
+            animation: 150,
+            onEnd: function () {
+                const ids = Array.from(group.children).map(el => el.dataset.itemId);
+                persistItemOrder(ids);
+            }
+        });
+        sortableInstances.push(inst);
+    });
+}
+
+async function persistCategoryOrder(categories) {
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'reorderCategories',
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
+                operator: currentUser.name,
+                categories
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            await initData();
+        } else {
+            showToast('分類排序儲存失敗：' + result.error);
+            await initData();
+        }
+    } catch (err) {
+        showToast('網路錯誤，分類排序可能未儲存');
+        await initData();
+    }
+}
+
+async function persistItemOrder(categoryItemIds) {
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'reorderItems',
+                name_auth: currentUser.name,
+                pass_auth: currentUser.pass,
+                operator: currentUser.name,
+                categoryItemIds
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            await initData();
+        } else {
+            showToast('排序儲存失敗：' + result.error);
+            await initData(); // 還原成伺服器上的實際順序
+        }
+    } catch (err) {
+        showToast('網路錯誤，排序可能未儲存');
+        await initData();
+    }
 }
 
 async function addItem() {
