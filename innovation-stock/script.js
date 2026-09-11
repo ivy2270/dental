@@ -183,16 +183,11 @@ function renderDashboard() {
     const container = document.getElementById('dashboard-categories');
     container.innerHTML = '';
 
-    const byCategory = {};
-    items.filter(item => item.isActive).forEach(item => {
-        const cat = item.category || '未分類';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push(item);
-    });
+    const { order, groups } = groupByCategory(items.filter(item => item.isActive));
 
-    Object.keys(byCategory).sort((a, b) => a.localeCompare(b, 'zh-Hant')).forEach(cat => {
+    order.forEach(cat => {
         const section = document.createElement('div');
-        const cardsHtml = byCategory[cat].map(item => {
+        const cardsHtml = groups[cat].map(item => {
             const isLow = item.currentQty <= 0;
             return `
                 <div class="bg-white p-3 rounded-lg shadow user-card ${isLow ? 'border-2 border-red-300' : ''}">
@@ -295,9 +290,12 @@ function renderItemSelectionLists() {
         container.innerHTML = order.map(cat => `
             <div class="col-span-full text-sm font-bold text-gray-500 border-b pb-1 mb-1 mt-3 first:mt-0">${cat}</div>
             ${groups[cat].map(item => `
-                <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer border">
-                    <input type="checkbox" class="item-checkbox-${prefix} h-5 w-5" value="${item.itemId}">
-                    <span class="text-sm">${item.itemName} <span class="text-gray-400">(${formatQty(item.currentQty)} ${item.unit || ''})</span></span>
+                <label class="flex items-center justify-between space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer border">
+                    <span class="flex items-center space-x-2">
+                        <input type="checkbox" class="item-checkbox-${prefix} h-5 w-5" value="${item.itemId}">
+                        <span class="text-sm">${item.itemName}</span>
+                    </span>
+                    <span class="text-sm ${item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} <span class="text-xs font-normal text-gray-400">${item.unit || ''}</span></span>
                 </label>
             `).join('')}
         `).join('');
@@ -319,32 +317,72 @@ function toStockStep2(prefix) {
 
     listContainer.innerHTML = selected.map(itemId => {
         const item = itemById[itemId];
-        const doctorField = (isStockOut && item.requireDoctor) ? `
-            <div class="mt-2">
-                <label class="block text-xs text-gray-500 mb-1">領用醫師</label>
-                <input type="text" list="doctor-datalist" class="row-doctor w-full border rounded p-2 text-sm" data-item-id="${itemId}" placeholder="輸入姓名搜尋">
-            </div>
-        ` : '';
+        const qtyClass = item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis';
+        const header = `
+            <div class="font-bold ${accentText}">${itemDisplayName(itemId, item.itemName)}</div>
+            <div class="text-sm mt-1">目前庫存：<span class="${qtyClass}">${formatQty(item.currentQty)} ${item.unit || ''}</span></div>
+        `;
+
+        if (isStockOut && item.requireDoctor) {
+            return `
+                <div class="border ${accentBorder} rounded-lg p-3 stock-input-card" data-item-id="${itemId}" data-multi-doctor="true">
+                    ${header}
+                    <div class="text-xs text-gray-500 mt-2">此品項領用需選擇醫師，可依不同醫師分開輸入多筆，各自填寫備註</div>
+                    <div class="doctor-rows space-y-2 mt-2">
+                        <div class="doctor-row border rounded p-2 space-y-1">
+                            <div class="flex gap-2">
+                                <input type="text" list="doctor-datalist" class="row-doctor-name flex-1 min-w-0 border rounded p-2 text-sm" placeholder="輸入醫師姓名">
+                                <input type="number" min="0" step="any" class="row-doctor-qty w-20 border rounded p-2 text-sm" placeholder="數量">
+                                <button type="button" onclick="removeDoctorRow(this)" class="text-gray-400 hover:text-rose-700 px-1" title="移除">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <input type="text" class="row-doctor-note w-full border rounded p-2 text-sm" placeholder="備註（牙位、病人姓名等，可不填）">
+                        </div>
+                    </div>
+                    <button type="button" onclick="addDoctorRow(this)" class="text-xs text-rose-600 underline mt-2">+ 新增一位醫師</button>
+                </div>
+            `;
+        }
+
         return `
-            <div class="border ${accentBorder} rounded-lg p-3">
-                <div class="font-bold ${accentText}">${item.itemName} <span class="text-xs text-gray-400 font-normal">目前庫存：${formatQty(item.currentQty)} ${item.unit || ''}</span></div>
+            <div class="border ${accentBorder} rounded-lg p-3 stock-input-card" data-item-id="${itemId}">
+                ${header}
                 <div class="grid grid-cols-2 gap-2 mt-2">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">數量</label>
-                        <input type="number" min="0" step="any" class="row-qty w-full border rounded p-2 text-sm" data-item-id="${itemId}" placeholder="數量">
+                        <input type="number" min="0" step="any" class="row-qty w-full border rounded p-2 text-sm" placeholder="數量">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">備註</label>
-                        <input type="text" class="row-note w-full border rounded p-2 text-sm" data-item-id="${itemId}" placeholder="可不填">
+                        <input type="text" class="row-note w-full border rounded p-2 text-sm" placeholder="可不填">
                     </div>
                 </div>
-                ${doctorField}
             </div>
         `;
     }).join('');
 
+    if (isStockOut) {
+        document.getElementById('stockout-date').value = todayStr();
+    }
+
     document.getElementById(`${prefix}-step-1`).classList.add('hidden');
     document.getElementById(`${prefix}-step-2`).classList.remove('hidden');
+}
+
+function addDoctorRow(button) {
+    const card = button.closest('.stock-input-card');
+    const rowsContainer = card.querySelector('.doctor-rows');
+    const template = rowsContainer.querySelector('.doctor-row');
+    const clone = template.cloneNode(true);
+    clone.querySelectorAll('input').forEach(input => input.value = '');
+    rowsContainer.appendChild(clone);
+}
+
+function removeDoctorRow(button) {
+    const rowsContainer = button.closest('.doctor-rows');
+    if (rowsContainer.querySelectorAll('.doctor-row').length <= 1) return; // 至少保留一列
+    button.closest('.doctor-row').remove();
 }
 
 function toStockStep1(prefix) {
@@ -356,45 +394,64 @@ function toStockStep1(prefix) {
 async function submitStock(prefix) {
     const type = prefix === 'stockin' ? '進貨' : '領用';
     const listContainer = document.getElementById(`${prefix}-input-list`);
-    const qtyInputs = listContainer.querySelectorAll('.row-qty');
+    const cards = listContainer.querySelectorAll('.stock-input-card');
 
     const records = [];
     let isValid = true;
 
-    qtyInputs.forEach(input => {
-        const itemId = input.dataset.itemId;
-        const qty = parseFloat(input.value);
-        if (isNaN(qty) || qty <= 0) { isValid = false; return; }
+    cards.forEach(card => {
+        const itemId = card.dataset.itemId;
 
-        const noteInput = listContainer.querySelector(`.row-note[data-item-id="${itemId}"]`);
-        const record = { itemId, qty, note: noteInput ? noteInput.value : '' };
+        if (card.dataset.multiDoctor === 'true') {
+            let hasAtLeastOneValid = false;
 
-        if (prefix === 'stockout' && itemById[itemId].requireDoctor) {
-            const doctorInput = listContainer.querySelector(`.row-doctor[data-item-id="${itemId}"]`);
-            const doctorName = doctorInput ? doctorInput.value.trim() : '';
-            const doctorId = doctorNameToId[doctorName];
-            if (!doctorId) { isValid = false; return; }
-            record.doctorId = doctorId;
+            card.querySelectorAll('.doctor-row').forEach(row => {
+                const doctorName = row.querySelector('.row-doctor-name').value.trim();
+                const qtyInput = row.querySelector('.row-doctor-qty');
+                const qty = parseFloat(qtyInput.value);
+                const noteInput = row.querySelector('.row-doctor-note');
+                const note = noteInput ? noteInput.value : '';
+
+                if (!doctorName && (isNaN(qty) || qty <= 0) && !note) return; // 完全空白的列直接略過，不當作錯誤
+
+                const doctorId = doctorNameToId[doctorName];
+                if (!doctorId || isNaN(qty) || qty <= 0) { isValid = false; return; }
+
+                records.push({ itemId, qty, doctorId, note });
+                hasAtLeastOneValid = true;
+            });
+
+            if (!hasAtLeastOneValid) isValid = false;
+        } else {
+            const qtyInput = card.querySelector('.row-qty');
+            const qty = parseFloat(qtyInput.value);
+            if (isNaN(qty) || qty <= 0) { isValid = false; return; }
+
+            const noteInput = card.querySelector('.row-note');
+            records.push({ itemId, qty, note: noteInput ? noteInput.value : '' });
         }
-
-        records.push(record);
     });
 
     if (!isValid || records.length === 0) {
-        return alert('請確認所有數量已正確填寫（需大於 0），且需要醫師的品項已從清單選取有效醫師');
+        return alert('請確認所有數量已正確填寫（需大於 0），且需要醫師的品項每一列都已選擇有效醫師並填寫數量');
+    }
+
+    const body = {
+        action: prefix === 'stockin' ? 'recordStockIn' : 'recordStockOut',
+        name_auth: currentUser.name,
+        pass_auth: currentUser.pass,
+        operator: currentUser.name,
+        records: records
+    };
+    if (prefix === 'stockout') {
+        body.date = document.getElementById('stockout-date').value || todayStr();
     }
 
     showLoading(true, '提交中...');
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({
-                action: prefix === 'stockin' ? 'recordStockIn' : 'recordStockOut',
-                name_auth: currentUser.name,
-                pass_auth: currentUser.pass,
-                operator: currentUser.name,
-                records: records
-            })
+            body: JSON.stringify(body)
         });
         const result = await res.json();
         if (result.success) {
@@ -404,7 +461,7 @@ async function submitStock(prefix) {
             switchTab('dashboard');
             startLogoutTimer();
         } else if (result.insufficient) {
-            const lines = result.insufficient.map(i => `${i.itemName}：庫存 ${formatQty(i.available)}，需要 ${formatQty(i.requested)}`).join('\n');
+            const lines = result.insufficient.map(i => `${itemDisplayName(i.itemId, i.itemName)}：庫存 ${formatQty(i.available)}，需要 ${formatQty(i.requested)}`).join('\n');
             showToast(result.error);
             alert('以下品項庫存不足，請先登記進貨：\n' + lines);
         } else {
@@ -464,7 +521,7 @@ function dailyCheckRowHtml(item) {
         <div class="bg-white p-3 rounded-lg shadow dc-row" data-item-id="${item.itemId}">
             <div class="flex justify-between items-center">
                 <div>
-                    <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：${formatQty(item.currentQty)} ${item.unit || ''})</span></div>
+                    <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：</span><span class="text-sm ${item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} ${item.unit || ''}</span><span class="text-xs text-gray-400">)</span></div>
                     ${checkedInfo}
                 </div>
                 <label class="flex items-center space-x-1">

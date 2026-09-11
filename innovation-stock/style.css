@@ -73,6 +73,11 @@ body {
     background-color: var(--primary-50) !important;
 }
 
+.qty-emphasis {
+    color: var(--primary-700);
+    font-weight: 700;
+}
+
 .text-stockin  { color: var(--stockin-700); }
 .text-stockout { color: var(--stockout-700); }
 
