@@ -188,7 +188,7 @@ function renderDashboard() {
     order.forEach(cat => {
         const section = document.createElement('div');
         const cardsHtml = groups[cat].map(item => {
-            const isLow = item.currentQty <= 0;
+            const isLow = item.currentQty <= 2;
             return `
                 <div class="bg-white p-3 rounded-lg shadow user-card ${isLow ? 'border-2 border-red-300' : ''}">
                     <div class="font-bold text-sm">${item.itemName}</div>
@@ -295,7 +295,7 @@ function renderItemSelectionLists() {
                         <input type="checkbox" class="item-checkbox-${prefix} h-5 w-5" value="${item.itemId}">
                         <span class="text-sm">${item.itemName}</span>
                     </span>
-                    <span class="text-sm ${item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} <span class="text-xs font-normal text-gray-400">${item.unit || ''}</span></span>
+                    <span class="text-sm ${item.currentQty <= 2 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} <span class="text-xs font-normal text-gray-400">${item.unit || ''}</span></span>
                 </label>
             `).join('')}
         `).join('');
@@ -317,7 +317,7 @@ function toStockStep2(prefix) {
 
     listContainer.innerHTML = selected.map(itemId => {
         const item = itemById[itemId];
-        const qtyClass = item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis';
+        const qtyClass = item.currentQty <= 2 ? 'balance-negative' : 'qty-emphasis';
         const header = `
             <div class="font-bold ${accentText}">${itemDisplayName(itemId, item.itemName)}</div>
             <div class="text-sm mt-1">目前庫存：<span class="${qtyClass}">${formatQty(item.currentQty)} ${item.unit || ''}</span></div>
@@ -521,7 +521,7 @@ function dailyCheckRowHtml(item) {
         <div class="bg-white p-3 rounded-lg shadow dc-row" data-item-id="${item.itemId}">
             <div class="flex justify-between items-center">
                 <div>
-                    <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：</span><span class="text-sm ${item.currentQty <= 0 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} ${item.unit || ''}</span><span class="text-xs text-gray-400">)</span></div>
+                    <div class="font-bold">${item.itemName} <span class="text-xs text-gray-400">(系統：</span><span class="${item.currentQty <= 2 ? 'balance-negative' : 'qty-emphasis'}">${formatQty(item.currentQty)} ${item.unit || ''}</span><span class="text-xs text-gray-400">)</span></div>
                     ${checkedInfo}
                 </div>
                 <label class="flex items-center space-x-1">
