@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新北市牙醫師公會 LINE OA 評估與廠商報價比較</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#37c4a5',
+              dark: '#2ba187',
+              deep: '#1e7361',
+              light: '#f0fbf8',
+              surface: '#e2f6f1'
+            },
+            accent: {
+              DEFAULT: '#ffcd57',
+              dark: '#e0ae38',
+              light: '#fff8e7',
+              surface: '#fffaed'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    [v-cloak] { display: none; }
+    html { scroll-behavior: smooth; }
+    /* 自訂平滑橫向滾動條 */
+    .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen pb-28" id="app" v-cloak>
+
+  <!-- 頂部懸浮導覽區 -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 md:px-8 py-2.5 md:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      
+      <!-- 公會名稱與 LOGO -->
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-brand flex items-center justify-center text-white font-extrabold text-xs md:text-base shadow-sm flex-shrink-0">
+          LINE
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-[11px] md:text-xs font-semibold text-slate-500 leading-none mb-1">新北市牙醫師公會</h1>
+          <p class="text-sm md:text-lg font-extrabold text-slate-900 leading-tight truncate">LINE OA 評估與決策報告</p>
+        </div>
+      </div>
+
+      <!-- 導覽按鈕區 -->
+      <div class="flex items-center space-x-2 w-full sm:w-auto">
+        <a href="#timeline-section" class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold text-slate-600 hover:text-brand px-3 py-1.5 rounded-lg bg-slate-100 transition-colors">
+          溝通歷程
+        </a>
+        <a href="#vendors-section" class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold text-brand-dark bg-brand-light px-3 py-1.5 rounded-lg border border-brand/20 hover:bg-brand-surface transition-colors">
+          廠商比較
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- 資料載入中 Skeleton -->
+  <div v-if="isLoading" class="max-w-4xl mx-auto p-4 space-y-4">
+    <div class="h-40 bg-slate-200/70 rounded-2xl animate-pulse"></div>
+    <div class="h-28 bg-slate-200/70 rounded-xl animate-pulse"></div>
+    <div class="h-64 bg-slate-200/70 rounded-2xl animate-pulse"></div>
+    <p class="text-center text-sm text-slate-400 mt-4">正在讀取專案資料，請稍候...</p>
+  </div>
+
+  <!-- 主要內容區 -->
+  <main v-else class="max-w-6xl mx-auto px-4 md:px-8 pt-6 space-y-8">
+
+    <!-- 主頁面英雄區塊 -->
+    <section class="bg-gradient-to-br from-brand-light via-white to-accent-light rounded-3xl p-6 md:p-8 border border-brand/20 shadow-sm relative overflow-hidden">
+      <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-brand/10 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-accent/30 text-amber-950 text-xs md:text-sm font-bold mb-3">
+        <i data-lucide="file-spread-sheet" class="w-4 h-4"></i>
+        <span>專案決策報告</span>
+      </div>
+      <h2 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-snug mb-3">
+        新北市牙醫師公會<br class="md:hidden"><span class="text-brand-dark"> LINE OA 評估與廠商報價整理</span>
+      </h2>
+      <p class="text-sm md:text-base text-slate-600 leading-relaxed max-w-3xl">
+        本報告彙整與各廠商之洽詢歷程、一次性建置總價、年度維護費用與特色優缺點，供理監事會議討論與評選決策。
+      </p>
+
+      <div class="mt-6 pt-4 border-t border-slate-200/80 grid grid-cols-3 gap-3 md:gap-6 text-center max-w-xl">
+        <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
+          <span class="block text-xs text-slate-400 font-medium">總評估廠商</span>
+          <span class="text-base md:text-lg font-black text-slate-800">{{ vendors.length }} 家</span>
+        </div>
+        <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
+          <span class="block text-xs text-slate-400 font-medium">溝通歷程紀錄</span>
+          <span class="text-base md:text-lg font-black text-slate-800">{{ communications.length }} 筆</span>
+        </div>
+        <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
+          <span class="block text-xs text-slate-400 font-medium">資料版本</span>
+          <span class="text-base md:text-lg font-black text-brand-dark">會議最新版</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 區塊一：廠商溝通歷程 -->
+    <section id="timeline-section" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+          <span class="w-2.5 h-5 bg-brand rounded-full"></span>
+          <span>廠商溝通過程紀錄</span>
+        </h3>
+        <span class="text-xs md:text-sm text-slate-400">點擊卡片可展開歷史溝通細節</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <div 
+          v-for="(item, index) in communications" 
+          :key="index"
+          class="bg-white rounded-2xl border border-slate-200/90 shadow-xs transition-all overflow-hidden"
+          :class="{'ring-2 ring-brand/50 border-transparent': activeTimelineIndex === index}"
+        >
+          <!-- 風琴標題欄 -->
+          <button 
+            @click="toggleTimeline(index)" 
+            class="w-full text-left p-4 flex items-start justify-between space-x-3 hover:bg-slate-50/60 transition-colors"
+          >
+            <div class="space-y-2 w-full">
+              <!-- 頂部標籤列：廠商名稱 + 來源 + 狀態 -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-extrabold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200/60">
+                  {{ item.vendor }}
+                </span>
+                <span class="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded">
+                  來源：{{ item.origin }}
+                </span>
+                <span 
+                  class="text-xs px-2 py-0.5 rounded-md font-bold ml-auto"
+                  :class="getStatusBadgeClass(item.status)"
+                >
+                  {{ item.status }}
+                </span>
+              </div>
+
+              <!-- 階段名稱與日期 -->
+              <div class="flex items-baseline justify-between pt-1">
+                <h4 class="text-base font-extrabold text-slate-800 leading-snug">{{ item.stage }}</h4>
+                <span class="text-xs font-semibold text-slate-400">{{ item.date }}</span>
+              </div>
+
+              <p class="text-xs md:text-sm text-slate-600 line-clamp-2 leading-relaxed">{{ item.summary }}</p>
+            </div>
+
+            <!-- 外層 Div 包覆 Icon -->
+            <div 
+              class="flex-shrink-0 transition-transform duration-300 mt-1"
+              :class="activeTimelineIndex === index ? 'rotate-180 text-brand' : 'text-slate-400'"
+            >
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+
+          <!-- 風琴展開內容 -->
+          <div 
+            v-show="activeTimelineIndex === index" 
+            class="px-4 pb-4 pt-2 bg-slate-50/70 border-t border-slate-100 text-xs md:text-sm text-slate-600 space-y-2"
+          >
+            <p class="font-bold text-slate-800">溝通與決策細節：</p>
+            <ul class="space-y-1.5 pl-4 list-disc marker:text-brand">
+              <li v-for="(detail, dIdx) in item.details" :key="dIdx" class="leading-relaxed">
+                {{ detail }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+<!-- 區塊：LINE OA 官方營運成本與金流手續費說明 -->
+    <section v-if="lineCosts" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+          <span class="w-2.5 h-5 bg-amber-500 rounded-full"></span>
+          <span>{{ lineCosts.title }}</span>
+        </h3>
+        <span class="text-xs md:text-sm text-slate-400">系統建置外之固定與變動營運成本</span>
+      </div>
+
+      <div class="bg-gradient-to-br from-amber-50/70 via-white to-brand-light/55 rounded-3xl p-5 md:p-6 border border-amber-200/80 shadow-sm space-y-5">
+        <p class="text-xs md:text-sm text-slate-600 leading-relaxed">
+          {{ lineCosts.subtitle }}
+        </p>
+
+        <!-- 上半部：LINE 官方費用卡片 (3欄) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div v-for="(group, gIdx) in lineCosts.cards" :key="gIdx" class="bg-white/90 p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-extrabold text-slate-900 text-sm md:text-base">{{ group.category }}</h4>
+              <span class="text-xs font-bold text-amber-900 bg-accent/40 px-2.5 py-0.5 rounded-full">{{ group.badge }}</span>
+            </div>
+            <div class="space-y-2.5 pt-2 border-t border-slate-100">
+              <div v-for="(item, iIdx) in group.items" :key="iIdx" class="space-y-1">
+                <div class="flex justify-between items-baseline text-xs md:text-sm">
+                  <span class="font-bold text-slate-800">{{ item.name }}</span>
+                  <span class="font-black text-brand-dark">{{ item.cost }}</span>
+                </div>
+                <p class="text-xs text-slate-500 leading-normal">{{ item.desc }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 下半部：金流比較表格 (可左右滑動卡片) -->
+        <div v-if="lineCosts.paymentGateway" class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+          <div class="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="credit-card" class="w-4 h-4 text-brand-dark"></i>
+              <h4 class="font-extrabold text-slate-900 text-sm md:text-base">{{ lineCosts.paymentGateway.title }}</h4>
+            </div>
+            <span class="text-xs font-bold text-slate-400 md:hidden flex items-center space-x-1">
+              <span>左右滑動查看</span>
+            </span>
+          </div>
+
+          <!-- 橫向滾動容器 -->
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs md:text-sm border-collapse min-w-[600px]">
+              <thead>
+                <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-700">
+                  <th v-for="col in lineCosts.paymentGateway.columns" :key="col.key" class="p-3.5 font-extrabold first:pl-5">
+                    {{ col.label }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700">
+                <tr v-for="(row, rIdx) in lineCosts.paymentGateway.rows" :key="rIdx" class="hover:bg-amber-50/30 transition-colors">
+                  <td class="p-3.5 pl-5 font-bold bg-slate-50/40 text-slate-900 border-r border-slate-100">
+                    {{ row.feeType }}
+                  </td>
+                  <td class="p-3.5 font-medium">{{ row.ecpay }}</td>
+                  <td class="p-3.5 font-medium">{{ row.payuni }}</td>
+                  <td class="p-3.5 font-medium">{{ row.newebpay }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 底部提示文字 -->
+        <div v-if="lineCosts.notice" class="bg-amber-100/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-950 flex items-start space-x-2.5">
+          <i data-lucide="info" class="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5"></i>
+          <span class="leading-relaxed">{{ lineCosts.notice }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 區塊二：廠商比較與估價整理 -->
+    <section id="vendors-section" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+          <span class="w-2.5 h-5 bg-accent rounded-full"></span>
+          <span>廠商報價與特色比較</span>
+        </h3>
+        <span class="text-xs md:text-sm text-slate-500">最多可勾選 5 家進行對比</span>
+      </div>
+
+      <!-- 廠商卡片 Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div 
+          v-for="vendor in vendors" 
+          :key="vendor.id"
+          class="bg-white rounded-3xl border transition-all shadow-sm hover:shadow-md overflow-hidden relative flex flex-col justify-between"
+          :class="{
+            'border-brand ring-2 ring-brand/30': vendor.isRecommended,
+            'border-slate-200/90': !vendor.isRecommended
+          }"
+        >
+          <!-- 推薦標籤 -->
+          <div 
+            v-if="vendor.isRecommended" 
+            class="bg-accent text-slate-950 text-xs font-black px-3.5 py-1 absolute top-0 right-0 rounded-bl-xl shadow-xs flex items-center space-x-1"
+          >
+            <i data-lucide="star" class="w-3.5 h-3.5 fill-slate-950"></i>
+            <span>{{ vendor.badge }}</span>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div class="pr-12">
+              <span class="text-xs font-bold text-brand-dark bg-brand-light px-2.5 py-0.5 rounded-full tracking-wide">
+                {{ vendor.badge }}
+              </span>
+              <h4 class="text-lg font-black text-slate-900 mt-1.5">{{ vendor.name }}</h4>
+            </div>
+
+            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs md:text-sm space-y-2.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-400 font-medium">專案建置總價</span>
+                <span class="text-base font-black text-slate-900">NT$ {{ formatNumber(vendor.price) }}</span>
+              </div>
+              <div class="flex justify-between items-center pt-2 border-t border-slate-200/60">
+                <span class="text-xs text-slate-400 font-medium">年度維護費用</span>
+                <span class="text-sm md:text-base font-bold text-brand-dark">NT$ {{ formatNumber(vendor.annualMaintenance) }} <span class="text-xs font-normal text-slate-400">/年</span></span>
+              </div>
+              <div class="flex justify-between items-center pt-2 border-t border-slate-200/60">
+                <span class="text-xs text-slate-400 font-medium">預估工期</span>
+                <span class="font-bold text-slate-700">{{ vendor.duration }}</span>
+              </div>
+            </div>
+
+            <div class="space-y-2.5">
+              <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3 text-xs md:text-sm space-y-1">
+                <div class="font-bold text-emerald-800 flex items-center space-x-1.5 mb-1">
+                  <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                  <span>核心優勢</span>
+                </div>
+                <ul class="pl-4 list-disc marker:text-emerald-500 text-slate-700 space-y-1 leading-relaxed">
+                  <li v-for="(h, idx) in vendor.highlights" :key="idx">{{ h }}</li>
+                </ul>
+              </div>
+
+              <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-xs md:text-sm space-y-1">
+                <div class="font-bold text-amber-800 flex items-center space-x-1.5 mb-1">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+                  <span>風險與注意事項</span>
+                </div>
+                <ul class="pl-4 list-disc marker:text-amber-500 text-slate-700 space-y-1 leading-relaxed">
+                  <li v-for="(r, idx) in vendor.risks" :key="idx">{{ r }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+            <label class="flex items-center space-x-2 text-xs md:text-sm font-bold text-slate-700 cursor-pointer">
+              <input 
+                type="checkbox" 
+                :value="vendor.id" 
+                v-model="selectedVendorIds" 
+                :disabled="selectedVendorIds.length >= 5 && !selectedVendorIds.includes(vendor.id)"
+                class="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4"
+              >
+              <span>加入對比</span>
+            </label>
+
+            <a 
+              :href="vendor.pdfUrl" 
+              target="_blank" 
+              class="inline-flex items-center space-x-1.5 text-xs md:text-sm font-bold text-brand-dark bg-brand-light hover:bg-brand-surface px-3.5 py-1.5 rounded-xl border border-brand/20 transition-colors"
+            >
+              <i data-lucide="file-text" class="w-4 h-4"></i>
+              <span>PDF 報價單</span>
+              <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 底部固定對比觸發列 -->
+  <div 
+    v-if="!isLoading && selectedVendorIds.length >= 2"
+    class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl p-3.5"
+  >
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="text-xs md:text-sm">
+        <span class="text-slate-500">已選擇 </span>
+        <span class="font-extrabold text-brand-dark text-base">{{ selectedVendorIds.length }}</span>
+        <span class="text-slate-500"> / 5 家廠商比較</span>
+      </div>
+      
+      <button 
+        @click="openCompareModal" 
+        class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-extrabold text-slate-900 bg-accent hover:bg-accent-dark shadow-md transition-all flex items-center space-x-2"
+      >
+        <i data-lucide="columns-2" class="w-4 h-4"></i>
+        <span>開啟多廠商對比面板</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 多廠商對比 Modal -->
+  <div 
+    v-if="showCompareModal" 
+    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex flex-col justify-end md:justify-center p-0 md:p-6"
+    @click.self="showCompareModal = false"
+  >
+    <div class="bg-white rounded-t-3xl md:rounded-3xl max-w-6xl mx-auto w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      
+      <div class="p-4 md:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="sliders-horizontal" class="w-5 h-5 text-brand-dark"></i>
+          <h3 class="text-base md:text-lg font-black text-slate-900">
+            多廠商綜合對比面板 (共 {{ compareVendors.length }} 家)
+          </h3>
+        </div>
+        <button @click="showCompareModal = false" class="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 transition-colors">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <div class="p-4 md:p-6 overflow-x-auto custom-scrollbar space-y-6">
+        <div class="min-w-[600px] md:min-w-0 space-y-6">
+          <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+            <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-slate-50 rounded-2xl text-center border border-slate-100">
+              <span class="text-xs text-brand-dark font-bold bg-brand-light px-2.5 py-0.5 rounded-full">{{ v.badge }}</span>
+              <h4 class="font-extrabold text-slate-900 text-base mt-1.5">{{ v.name }}</h4>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-bold text-slate-400 text-xs mb-1.5 text-center">專案建置總價</div>
+            <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+              <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-slate-50 rounded-xl text-center font-black text-slate-900 text-base">
+                NT$ {{ formatNumber(v.price) }}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-bold text-slate-400 text-xs mb-1.5 text-center">年度維護費用</div>
+            <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+              <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-brand-light rounded-xl text-center font-extrabold text-brand-dark text-sm">
+                NT$ {{ formatNumber(v.annualMaintenance) }} /年
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-bold text-slate-400 text-xs mb-1.5 text-center">預估工期</div>
+            <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+              <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-slate-50 rounded-xl text-center text-xs md:text-sm font-bold text-slate-700">
+                {{ v.duration }}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-bold text-slate-400 text-xs mb-1.5 text-center">核心優勢對比</div>
+            <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+              <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-emerald-50/70 rounded-xl border border-emerald-100/60">
+                <ul class="list-disc pl-4 marker:text-emerald-500 space-y-1 text-slate-700 text-xs md:text-sm">
+                  <li v-for="(h, idx) in v.highlights" :key="idx">{{ h }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-bold text-slate-400 text-xs mb-1.5 text-center">風險/待澄清對比</div>
+            <div class="grid gap-3" :style="{ gridTemplateColumns: `repeat(${compareVendors.length}, minmax(0, 1fr))` }">
+              <div v-for="v in compareVendors" :key="v.id" class="p-3 bg-amber-50/70 rounded-xl border border-amber-100/60">
+                <ul class="list-disc pl-4 marker:text-amber-500 space-y-1 text-slate-700 text-xs md:text-sm">
+                  <li v-for="(r, idx) in v.risks" :key="idx">{{ r }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-100 bg-slate-50">
+        <button @click="showCompareModal = false" class="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm">
+          關閉對比面板
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vue 邏輯 Script -->
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const activeTimelineIndex = ref(0);
+        const selectedVendorIds = ref([]);
+        const showCompareModal = ref(false);
+        const isLoading = ref(true);
+
+        const communications = ref([]);
+        const vendors = ref([]);
+        const lineCosts = ref(null);
+
+        const loadData = async () => {
+          try {
+            const [commRes, vendorRes, costRes] = await Promise.all([
+              fetch('./communication.json'),
+              fetch('./vendors.json'),
+              fetch('./line-costs.json')
+            ]);
+            
+            if (!commRes.ok || !vendorRes.ok || !costRes.ok) {
+              throw new Error(`伺服器回應異常（HTTP ${commRes.status} / ${vendorRes.status} / ${costRes.status}）`);
+            }
+
+            communications.value = await commRes.json();
+            vendors.value = await vendorRes.json();
+            lineCosts.value = await costRes.json();
+          } catch (error) {
+            console.error("無法正確載入 JSON 資料：", error);
+            communications.value = [];
+            vendors.value = [];
+            lineCosts.value = null;
+            alert("無法載入專案資料，請檢查同目錄下是否有 communication.json、vendors.json 與 line-costs.json，且 JSON 格式正確。");
+          } finally {
+            isLoading.value = false;
+            refreshIcons();
+          }
+        };
+
+        const getStatusBadgeClass = (status) => {
+          switch (status) {
+            case '取得初步報價':
+            case '已完成':
+              return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+            case '無回應':
+            case '不符需求':
+              return 'bg-rose-100 text-rose-800 border border-rose-200';
+            case '討論中':
+            case '進行中':
+              return 'bg-amber-100 text-amber-800 border border-amber-200';
+            default:
+              return 'bg-slate-100 text-slate-700 border border-slate-200';
+          }
+        };
+
+        const toggleTimeline = (index) => {
+          activeTimelineIndex.value = activeTimelineIndex.value === index ? -1 : index;
+        };
+
+        const formatNumber = (num) => num ? num.toLocaleString() : '0';
+
+        const compareVendors = computed(() => {
+          return vendors.value.filter(v => selectedVendorIds.value.includes(v.id));
+        });
+
+        const openCompareModal = () => {
+          if (selectedVendorIds.value.length >= 2) {
+            showCompareModal.value = true;
+            refreshIcons();
+          }
+        };
+
+        const refreshIcons = () => {
+          nextTick(() => {
+            if (window.lucide) {
+              window.lucide.createIcons();
+            }
+          });
+        };
+
+        onMounted(() => {
+          loadData();
+        });
+
+        return {
+          communications,
+          vendors,
+          lineCosts,
+          isLoading,
+          activeTimelineIndex,
+          selectedVendorIds,
+          showCompareModal,
+          compareVendors,
+          getStatusBadgeClass,
+          toggleTimeline,
+          formatNumber,
+          openCompareModal
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
