@@ -1,0 +1,80 @@
+{
+  "title": "LINE OA 官方營運成本與金流手續費說明",
+  "subtitle": "評估各家廠商報價時，需同步考量 LINE 官方帳號固定訂閱費、訊息發送量與第三方金流服務商之年費與手續費等長期營運支出。",
+  "cards": [
+    {
+      "category": "LINE OA 官方認證帳號",
+      "badge": "固定年費",
+      "items": [
+        {
+          "name": "專屬 LINE ID",
+          "cost": "約 NT$ 720 / 年",
+          "desc": "認證帳號可提高會員信任度（不會顯示「尚未認證的官方帳號」），並可串接各式功能。"
+        }
+      ]
+    },
+    {
+      "category": "LINE OA 訊息訂閱方案",
+      "badge": "固定月費",
+      "items": [
+        {
+          "name": "中用量方案",
+          "cost": "NT$ 1,000 / 月",
+          "desc": "包含 3,000 則免費訊息，超出後不可加購訊息。"
+        },
+        {
+          "name": "高用量方案",
+          "cost": "NT$ 1,400 / 月",
+          "desc": "推播通知及廣告使用，內含6000則訊息，可以額外加購訊息。"
+        }
+      ]
+    },
+    {
+      "category": "超額訊息費用（高用量）",
+      "badge": "變動成本",
+      "items": [
+        {
+          "name": "超出免費額度後",
+          "cost": "約 NT$ 0.2 / 則",
+          "desc": "若每個月發送多則公告或活動通知，超過方案額度後會按則數加收費用。"
+        }
+      ]
+    }
+  ],
+  "paymentGateway": {
+    "title": "第三方金流比較",
+    "columns": [
+      { "key": "feeType", "label": "費用" },
+      { "key": "ecpay", "label": "綠界科技 (ECPay)" },
+      { "key": "payuni", "label": "統一 PAYUNI" },
+      { "key": "newebpay", "label": "藍新金流 (NewebPay)" }
+    ],
+    "rows": [
+      {
+        "feeType": "特約年費",
+        "ecpay": "NT$ 9,555 / 年",
+        "payuni": "無",
+        "newebpay": "無"
+      },
+      {
+        "feeType": "信用卡 (一次付清)",
+        "ecpay": "2.3625%",
+        "payuni": "2.8%",
+        "newebpay": "2.8%（Matrix可2%）"
+      },
+      {
+        "feeType": "ATM 轉帳 / 虛擬帳號",
+        "ecpay": "1.05% (每筆上限 $30)",
+        "payuni": "1% (每筆上限 $15)",
+        "newebpay": "1% (每筆上限 $20)"
+      },
+      {
+        "feeType": "超商代碼繳費",
+        "ecpay": "NT$ 33 / 筆",
+        "payuni": "NT$ 25 / 筆（限7-11）",
+        "newebpay": "NT$ 28 / 筆"
+      }
+    ]
+  },
+  "notice": "註：上述 LINE 官方訂閱費與第三方金流手續費為標準公開費率，不包含在廠商一次性系統建置及年度維護報價中，需另行編列預算。"
+}

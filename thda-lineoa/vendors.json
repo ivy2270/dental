@@ -1,0 +1,83 @@
+[
+  {
+    "id": "vendor-a",
+    "name": "伊塔科技",
+    "badge": "已有類似產品",
+    "isRecommended": false,
+    "price": 895000,
+    "annualMaintenance": 185000,
+    "duration": "3-5 個月",
+    "highlights": [
+      "目前已有學會成功建置LINE OA及線上報名、查詢學分等功能",
+      "第一年免收系統維護年費",
+	  "如改用統一金流（不串接綠界）建置費用-100000",
+      "廠商回覆迅速，皆有按約定時程交付資料",
+	  "業務大都與醫療相關，對醫療、牙科較有概念",
+	  "建置及年度費用目前最低"
+	 
+    ],
+    "risks": [
+      "新創公司，規模較小",
+      "目前包含之優惠為：團報折扣、系列課程、早⿃價格，其他優惠可能需另行計價"
+    ],
+    "pdfUrl": "https://drive.google.com/drive/folders/1gsECJGgRAJ1HpeApzm8nWLEgc4eOlaf5?usp=drive_link"
+  },
+  {
+    "id": "vendor-b",
+    "name": "OakMega大橡科技",
+    "badge": "LINE官方認證合作夥伴",
+    "isRecommended": false,
+    "price": 15750000,
+    "annualMaintenance": 3180000,
+    "duration": "2-4個月",
+    "highlights": [
+      "完整的公司規模及團隊",
+      "窗口回覆迅速，目前提供prototype框架展示（尚未能實際使用）",
+	  "團隊分工細緻，需求會由多方合併評估，會議討論後主動提供會議記錄",
+	  "會主動聯繫關心進度",
+	  "有眾多大企業合作經驗"
+    ],
+    "risks": [
+      "團隊分工較細，提出問題需一段時間討論才能回覆",
+      "過往較無牙醫師公會領域之特定業務經驗"
+    ],
+    "pdfUrl": "https://drive.google.com/drive/folders/1AvkhqAYyEEF3SCRt4_KCke1mJ9nUWlXw?usp=drive_link"
+  },
+  {
+    "id": "vendor-c",
+    "name": "翔評互動",
+    "badge": "LINE官方認證合作夥伴",
+    "isRecommended": false,
+    "price": 3000000,
+    "annualMaintenance": 700000,
+    "duration": "180-200個工作天",
+    "highlights": [
+      "熟悉醫療產業及LINE OA運作",
+      "提供AI FAQ功能"
+    ],
+    "risks": [
+      "建置費用及年度維護費較高",
+      "過程僅書面聯繫，目前也沒有樣品，較難評估完成型態"
+    ],
+    "pdfUrl": "https://drive.google.com/file/d/1Tm0M8fC_vBwA728-XmINwQBSJiTuvynJ/view?usp=drive_link"
+  },
+  {
+    "id": "vendor-d",
+    "name": "Matirx美萃思",
+    "badge": "LINE官方認證合作夥伴",
+    "isRecommended": false,
+    "price": 1350000,
+    "annualMaintenance": 543000,
+    "duration": "3-4個月，但最快年底才能開始",
+    "highlights": [
+      "多年電商建置經驗，有靈活的購物車模組",
+      "善於運用現有模組滿足需求，盡量減少客製部分",
+	  "主要和藍新金流配合，可提供信用卡刷卡手續費2%優惠"
+    ],
+    "risks": [
+      "目前沒有樣品，較難評估以購物模組為基礎是否符合我方實際需求",
+      "過往較無牙醫師公會領域之特定業務經驗"
+    ],
+    "pdfUrl": "https://drive.google.com/file/d/1myRM3XtY0neJA7RoBYh8FV9UQr2eWCgI/view?usp=sharing"
+  }
+]
