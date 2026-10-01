@@ -62,12 +62,20 @@
 
       <!-- 導覽按鈕區 -->
       <div class="flex items-center space-x-2 w-full sm:w-auto">
-        <a href="#timeline-section" class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold text-slate-600 hover:text-brand px-3 py-1.5 rounded-lg bg-slate-100 transition-colors">
-          溝通歷程
-        </a>
-        <a href="#vendors-section" class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold text-brand-dark bg-brand-light px-3 py-1.5 rounded-lg border border-brand/20 hover:bg-brand-surface transition-colors">
-          廠商比較
-        </a>
+        <button
+          @click="switchTab('vendors')"
+          class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border transition-colors"
+          :class="activeTab === 'vendors' ? 'text-brand-dark bg-brand-light border-brand/20' : 'text-slate-600 bg-slate-100 border-transparent hover:text-brand'"
+        >
+          廠商比價
+        </button>
+        <button
+          @click="switchTab('history')"
+          class="flex-1 sm:flex-none text-center text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border transition-colors"
+          :class="activeTab === 'history' ? 'text-brand-dark bg-brand-light border-brand/20' : 'text-slate-600 bg-slate-100 border-transparent hover:text-brand'"
+        >
+          專案歷程
+        </button>
       </div>
 
     </div>
@@ -98,13 +106,25 @@
         本報告彙整與各廠商之洽詢歷程、一次性建置總價、年度維護費用與特色優缺點，供理監事會議討論與評選決策。
       </p>
 
+      <a
+        v-if="project && project.requirementDoc && project.requirementDoc.url"
+        :href="project.requirementDoc.url"
+        target="_blank"
+        rel="noopener"
+        class="mt-4 inline-flex items-center space-x-1.5 text-xs md:text-sm font-bold text-brand-dark bg-white hover:bg-brand-surface px-3.5 py-1.5 rounded-xl border border-brand/20 transition-colors"
+      >
+        <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+        <span>{{ project.requirementDoc.title }} PDF</span>
+        <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
+      </a>
+
       <div class="mt-6 pt-4 border-t border-slate-200/80 grid grid-cols-3 gap-3 md:gap-6 text-center max-w-xl">
         <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
           <span class="block text-xs text-slate-400 font-medium">總評估廠商</span>
           <span class="text-base md:text-lg font-black text-slate-800">{{ vendors.length }} 家</span>
         </div>
         <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
-          <span class="block text-xs text-slate-400 font-medium">溝通歷程紀錄</span>
+          <span class="block text-xs text-slate-400 font-medium">廠商洽詢紀錄</span>
           <span class="text-base md:text-lg font-black text-slate-800">{{ communications.length }} 筆</span>
         </div>
         <div class="bg-white/90 p-3 rounded-xl border border-slate-100 shadow-2xs">
@@ -114,12 +134,15 @@
       </div>
     </section>
 
-    <!-- 區塊一：廠商溝通歷程 -->
+    <!-- ===== 頁籤一：廠商比價 ===== -->
+    <div v-show="activeTab === 'vendors'" class="space-y-8">
+
+    <!-- 區塊一：廠商洽詢紀錄 -->
     <section id="timeline-section" class="space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
           <span class="w-2.5 h-5 bg-brand rounded-full"></span>
-          <span>廠商溝通過程紀錄</span>
+          <span>廠商洽詢紀錄</span>
         </h3>
         <span class="text-xs md:text-sm text-slate-400">點擊卡片可展開歷史溝通細節</span>
       </div>
@@ -275,6 +298,24 @@
         <span class="text-xs md:text-sm text-slate-500">最多可勾選 5 家進行對比</span>
       </div>
 
+      <!-- 需求單說明列 -->
+      <div
+        v-if="project && project.requirementDoc && project.requirementDoc.url"
+        class="bg-brand-light/70 border border-brand/20 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+      >
+        <p class="text-xs md:text-sm text-slate-600 leading-relaxed">{{ project.requirementDoc.desc }}</p>
+        <a
+          :href="project.requirementDoc.url"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center justify-center space-x-1.5 text-xs md:text-sm font-bold text-brand-dark bg-white hover:bg-brand-surface px-3.5 py-1.5 rounded-xl border border-brand/20 transition-colors flex-shrink-0"
+        >
+          <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+          <span>{{ project.requirementDoc.title }} PDF</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
+        </a>
+      </div>
+
       <!-- 廠商卡片 Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <div 
@@ -366,11 +407,122 @@
         </div>
       </div>
     </section>
+
+    </div>
+    <!-- ===== /頁籤一 ===== -->
+
+    <!-- ===== 頁籤二：專案歷程 ===== -->
+    <div v-show="activeTab === 'history'" class="space-y-6">
+      <template v-if="timeline">
+
+        <!-- 目前進度 -->
+        <div v-if="timeline.status" class="bg-accent-light/80 border border-accent/50 rounded-2xl p-4 flex items-start space-x-3">
+          <div class="flex-shrink-0 mt-0.5 text-amber-700">
+            <i data-lucide="flag" class="w-5 h-5"></i>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm font-extrabold text-slate-900">{{ timeline.status.label }}</p>
+            <p class="text-xs md:text-sm text-slate-700 leading-relaxed">{{ timeline.status.text }}</p>
+          </div>
+        </div>
+
+        <!-- 現行 APP 痛點 -->
+        <section v-if="timeline.painPoints && timeline.painPoints.length" class="space-y-3">
+          <div class="flex flex-wrap items-baseline justify-between gap-1">
+            <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+              <span class="w-2.5 h-5 bg-rose-400 rounded-full"></span>
+              <span>{{ timeline.painPointsTitle }}</span>
+            </h3>
+            <span class="text-xs md:text-sm text-slate-400">{{ timeline.painPointsSource }}</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div v-for="(pp, ppIdx) in timeline.painPoints" :key="ppIdx" class="bg-white rounded-2xl border border-slate-200/90 p-4 flex items-start space-x-3">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-rose-100 text-rose-700 text-xs font-black flex items-center justify-center">{{ ppIdx + 1 }}</span>
+              <div class="space-y-1">
+                <p class="text-sm font-extrabold text-slate-900 leading-snug">{{ pp.title }}</p>
+                <p class="text-xs md:text-sm text-slate-600 leading-relaxed">{{ pp.desc }}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 會議時間軸 -->
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+              <span class="w-2.5 h-5 bg-brand rounded-full"></span>
+              <span>專案討論歷程</span>
+            </h3>
+            <span class="text-xs md:text-sm text-slate-400">點擊會議卡片可展開完整內容</span>
+          </div>
+
+          <div v-for="(phase, pIdx) in timeline.phases" :key="pIdx" class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs md:text-sm font-black text-white bg-brand-dark px-3 py-1 rounded-full">{{ phase.title }}</span>
+              <span class="text-xs font-semibold text-slate-400">{{ phase.range }}</span>
+            </div>
+
+            <ol class="relative border-l-2 border-brand/30 ml-2 pl-5 space-y-3">
+              <li v-for="(item, iIdx) in phase.items" :key="iIdx" class="relative">
+                <span
+                  class="absolute -left-[27px] top-[18px] w-3 h-3 rounded-full border-2 border-white"
+                  :class="item.kind === 'meeting' ? 'bg-brand' : 'bg-indigo-500'"
+                ></span>
+
+                <!-- 重要事件（不展開） -->
+                <div v-if="item.kind === 'event'" class="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">事件</span>
+                    <span class="text-xs font-semibold text-indigo-400 ml-auto">{{ item.date }}</span>
+                  </div>
+                  <p class="text-xs md:text-sm text-slate-700 leading-relaxed">{{ item.text }}</p>
+                </div>
+
+                <!-- 會議卡片 -->
+                <div
+                  v-else
+                  class="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all"
+                  :class="{'ring-2 ring-brand/50 border-transparent': openHistory[pIdx + '-' + iIdx]}"
+                >
+                  <button @click="toggleHistory(pIdx + '-' + iIdx)" class="w-full text-left p-4 flex items-start justify-between space-x-3 hover:bg-slate-50/60 transition-colors">
+                    <div class="space-y-2 w-full">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-md border" :class="getBodyBadgeClass(item.body)">{{ item.body }}</span>
+                        <span class="text-xs font-medium text-slate-500">{{ item.session }}</span>
+                        <span class="text-xs font-semibold text-slate-400 ml-auto">{{ item.date }}</span>
+                      </div>
+                      <h4 class="text-base font-extrabold text-slate-800 leading-snug">{{ item.topic }}</h4>
+                      <p class="text-xs md:text-sm text-slate-700 leading-relaxed bg-accent-surface border border-accent/40 rounded-lg px-3 py-2">
+                        <span class="font-extrabold text-amber-800 mr-1">決議</span>{{ item.decision }}
+                      </p>
+                    </div>
+                    <div class="flex-shrink-0 transition-transform duration-300 mt-1" :class="openHistory[pIdx + '-' + iIdx] ? 'rotate-180 text-brand' : 'text-slate-400'">
+                      <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                    </div>
+                  </button>
+
+                  <div v-show="openHistory[pIdx + '-' + iIdx]" class="px-4 pb-4 pt-3 bg-slate-50/70 border-t border-slate-100 text-xs md:text-sm text-slate-600 space-y-3">
+                    <div v-for="(sec, sIdx) in item.details" :key="sIdx" class="space-y-1.5">
+                      <p class="font-bold text-slate-800">{{ sec.label }}：</p>
+                      <ul class="space-y-1.5 pl-4 list-disc marker:text-brand">
+                        <li v-for="(line, lIdx) in sec.lines" :key="lIdx" class="leading-relaxed">{{ line }}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+      </template>
+    </div>
+    <!-- ===== /頁籤二 ===== -->
   </main>
 
   <!-- 底部固定對比觸發列 -->
   <div 
-    v-if="!isLoading && selectedVendorIds.length >= 2"
+    v-if="!isLoading && activeTab === 'vendors' && selectedVendorIds.length >= 2"
     class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl p-3.5"
   >
     <div class="max-w-6xl mx-auto flex items-center justify-between">
@@ -485,6 +637,8 @@
 
     createApp({
       setup() {
+        const activeTab = ref('vendors');
+        const openHistory = ref({});
         const activeTimelineIndex = ref(0);
         const selectedVendorIds = ref([]);
         const showCompareModal = ref(false);
@@ -493,28 +647,36 @@
         const communications = ref([]);
         const vendors = ref([]);
         const lineCosts = ref(null);
+        const timeline = ref(null);
+        const project = ref(null);
 
         const loadData = async () => {
           try {
-            const [commRes, vendorRes, costRes] = await Promise.all([
+            const [commRes, vendorRes, costRes, timelineRes, projectRes] = await Promise.all([
               fetch('./communication.json'),
               fetch('./vendors.json'),
-              fetch('./line-costs.json')
+              fetch('./line-costs.json'),
+              fetch('./timeline.json'),
+              fetch('./project.json')
             ]);
             
-            if (!commRes.ok || !vendorRes.ok || !costRes.ok) {
-              throw new Error(`伺服器回應異常（HTTP ${commRes.status} / ${vendorRes.status} / ${costRes.status}）`);
+            if (!commRes.ok || !vendorRes.ok || !costRes.ok || !timelineRes.ok || !projectRes.ok) {
+              throw new Error(`伺服器回應異常（HTTP ${commRes.status} / ${vendorRes.status} / ${costRes.status} / ${timelineRes.status} / ${projectRes.status}）`);
             }
 
             communications.value = await commRes.json();
             vendors.value = await vendorRes.json();
             lineCosts.value = await costRes.json();
+            timeline.value = await timelineRes.json();
+            project.value = await projectRes.json();
           } catch (error) {
             console.error("無法正確載入 JSON 資料：", error);
             communications.value = [];
             vendors.value = [];
             lineCosts.value = null;
-            alert("無法載入專案資料，請檢查同目錄下是否有 communication.json、vendors.json 與 line-costs.json，且 JSON 格式正確。");
+            timeline.value = null;
+            project.value = null;
+            alert("無法載入專案資料，請檢查同目錄下是否有 communication.json、vendors.json、line-costs.json、timeline.json 與 project.json，且 JSON 格式正確。");
           } finally {
             isLoading.value = false;
             refreshIcons();
@@ -535,6 +697,31 @@
             default:
               return 'bg-slate-100 text-slate-700 border border-slate-200';
           }
+        };
+
+        const getBodyBadgeClass = (body) => {
+          switch (body) {
+            case '理事會':
+              return 'bg-brand-light text-brand-deep border-brand/30';
+            case '資訊委員會':
+              return 'bg-sky-50 text-sky-800 border-sky-200';
+            case '學術牙輔聯席會議':
+              return 'bg-violet-50 text-violet-800 border-violet-200';
+            default:
+              return 'bg-slate-100 text-slate-700 border-slate-200';
+          }
+        };
+
+        const toggleHistory = (key) => {
+          openHistory.value = { ...openHistory.value, [key]: !openHistory.value[key] };
+        };
+
+        const tabFromHash = () => (location.hash === '#history' ? 'history' : 'vendors');
+
+        const switchTab = (tab) => {
+          activeTab.value = tab;
+          history.replaceState(null, '', tab === 'history' ? '#history' : location.pathname + location.search);
+          window.scrollTo({ top: 0 });
         };
 
         const toggleTimeline = (index) => {
@@ -563,6 +750,8 @@
         };
 
         onMounted(() => {
+          activeTab.value = tabFromHash();
+          window.addEventListener('hashchange', () => { activeTab.value = tabFromHash(); });
           loadData();
         });
 
@@ -570,12 +759,19 @@
           communications,
           vendors,
           lineCosts,
+          timeline,
+          project,
+          activeTab,
+          openHistory,
           isLoading,
           activeTimelineIndex,
           selectedVendorIds,
           showCompareModal,
           compareVendors,
           getStatusBadgeClass,
+          getBodyBadgeClass,
+          toggleHistory,
+          switchTab,
           toggleTimeline,
           formatNumber,
           openCompareModal
