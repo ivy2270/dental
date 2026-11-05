@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>候診名單</title>
+<style id="appStyle">
+  :root {
+    --paper: #f3f5f4;
+    --ink: #1c2927;
+    --muted: #5d6f6b;
+    --line: #cfd8d5;
+    --call: #1e3a5f;
+    --warn: #f7d154;
+    --alert: #d8392b;
+    --done: #dfe4e2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    font-size: 13px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  [v-cloak] { display: none; }
+  #pipNote { display: none; padding: 24px 12px; text-align: center; font-size: 14px; color: var(--muted); }
+
+  #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .bar {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 5px 8px; background: var(--ink); color: #fff;
+  }
+  .bar h1 { margin: 0; font-size: 15px; font-weight: 700; }
+  .badge { padding: 1px 6px; border: 1px solid #7f9b96; border-radius: 4px; font-size: 11px; }
+  .bar select {
+    min-height: 30px; padding: 0 6px; font-size: 13px; font-family: inherit;
+    border-radius: 5px; border: 0; background: #fff; color: var(--ink);
+  }
+  .count { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pipbtn {
+    min-height: 30px; padding: 0 8px; font-size: 12px; font-weight: 600; font-family: inherit;
+    background: transparent; color: #fff; border: 1px solid #7f9b96; border-radius: 5px; white-space: nowrap;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.good { background: #3ecf8e; }
+  .dot.bad { background: var(--alert); }
+
+  .notice { padding: 6px 10px; background: #fff3cd; color: #5a4300; font-size: 12px; border-bottom: 1px solid #e5c86b; }
+  .empty { padding: 28px 12px; text-align: center; font-size: 14px; color: var(--muted); }
+
+  /* 每張卡片兩行：左＝候診分鐘，中＝姓名／醫師與到診時間，右＝按鈕 */
+  .row {
+    display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+    padding: 4px 8px; background: #fff;
+    border-bottom: 1px solid var(--line); border-left: 5px solid var(--line);
+  }
+  .wait { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .info { min-width: 0; }
+  .name { font-size: 14px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { font-size: 11px; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .act { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .called { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+  .row.warn  { background: var(--warn); border-left-color: #b88a00; color: #3d3000; }
+  .row.warn .sub { color: #6b5600; }
+  .row.alert { background: var(--alert); border-left-color: #7a170f; color: #fff; }
+  .row.alert .sub { color: #ffe1dd; }
+  .row.done  { background: var(--done); border-left-color: #aab5b2; color: #7b8985; }
+  .row.done .sub { color: #8d9a97; }
+
+  .btn {
+    min-height: 30px; min-width: 52px; padding: 0 10px;
+    font-family: inherit; font-size: 13px; font-weight: 700;
+    border: 0; border-radius: 5px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .5; }
+  .btn.call { background: var(--call); color: #fff; }
+  .btn.remove { background: #fff; color: #a12a20; border: 1.5px solid #a12a20; }
+  .btn.ghost { background: transparent; color: inherit; border: 1.5px solid currentColor; font-size: 12px; }
+
+  .toast {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 10px; background: var(--ink); color: #fff; border-radius: 6px; font-size: 13px;
+  }
+  .toast .btn.ghost { color: #fff; }
+
+  .dateinput {
+    min-height: 30px; padding: 0 6px; font-size: 13px; font-family: inherit;
+    border: 0; border-radius: 5px; background: #fff; color: var(--ink);
+  }
+  .day { background: #fff; }
+  .day table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .day th, .day td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .day th { background: #e8eceb; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .day td.n { font-weight: 700; }
+  .day td.num { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .day tr.called td { color: #55655f; }
+  .day tr.removed td { color: #8a9693; text-decoration: line-through; }
+  .day .btn.ghost { color: var(--ink); min-height: 24px; min-width: 40px; }
+
+  /* 櫃台（滑鼠）：最緊湊 */
+  .mode-desk .row { padding: 3px 8px; }
+  .mode-desk .btn { min-height: 24px; min-width: 44px; padding: 0 8px; font-size: 12px; border-radius: 4px; }
+  .mode-desk .btn.ghost { min-height: 24px; font-size: 11px; }
+
+  /* 診間（觸控）：按鈕維持手指點得到的高度 */
+  .mode-room .row { grid-template-columns: 54px minmax(0, 1fr) auto; padding: 4px 8px; }
+  .mode-room .wait { font-size: 16px; }
+  .mode-room .btn { min-height: 38px; min-width: 60px; padding: 0 12px; font-size: 14px; }
+  .mode-room .btn.ghost { min-height: 38px; font-size: 13px; }
+
+  @media (max-width: 480px) {
+    .bar h1 { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="pipNote">名單已移到浮動視窗，關閉該視窗即可回到這裡。</div>
+
+<div id="app" v-cloak :class="'mode-' + mode">
+  <header class="bar">
+    <h1>候診名單</h1>
+    <span class="badge">{{ mode === 'room' ? '診間' : mode === 'admin' ? '主管' : '櫃台' }}</span>
+    <select v-model="doctor" aria-label="醫師篩選">
+      <option value="">全部醫師</option>
+      <option v-for="d in doctors" :key="d" :value="d">{{ d }}</option>
+    </select>
+    <input v-if="mode === 'admin'" type="date" v-model="dayDate" :min="minDate" :max="maxDate" class="dateinput" aria-label="查詢日期">
+    <button v-if="mode === 'desk'" class="pipbtn" @click="showDay = !showDay">{{ showDay ? '回候診名單' : '今日全部' }}</button>
+    <span class="count">{{ dayView ? '共 ' + dayRows.length + ' 筆' : '候診 ' + waitingCount + ' 人' }}</span>
+    <button v-if="pipSupported" class="pipbtn" @click="togglePip">{{ pipOpen ? '還原視窗' : '浮動置頂' }}</button>
+    <span class="dot" :class="error ? 'bad' : 'good'" :title="error || '連線正常'"></span>
+  </header>
+
+  <div v-if="error" class="notice">{{ error }}</div>
+
+  <main v-if="!dayView">
+    <div v-if="!rows.length && !error" class="empty">目前沒有候診病人</div>
+
+    <div v-for="r in rows" :key="r.id" class="row" :class="r.level">
+      <div class="wait">{{ r.waitText }}</div>
+      <div class="info">
+        <div class="name">{{ r.patient_name }}</div>
+        <div class="sub">{{ r.doctor }}　{{ r.arriveText }} 到診</div>
+      </div>
+      <div class="act">
+        <span v-if="r.status === 'called'" class="called">✓ 已叫號</span>
+        <button v-if="mode === 'room' && r.status === 'waiting'" class="btn call" :disabled="busy" @click="act('call', r)">叫號</button>
+        <button v-if="mode === 'room' && r.status === 'called'" class="btn ghost" :disabled="busy" @click="act('undo', r)">復原</button>
+        <button v-if="mode === 'desk' && r.status === 'waiting'" class="btn remove" :disabled="busy" @click="act('remove', r)">移除</button>
+      </div>
+    </div>
+  </main>
+
+  <main v-else class="day">
+    <div v-if="!dayRows.length && !error" class="empty">這天沒有掛號紀錄</div>
+    <table v-else-if="dayRows.length">
+      <thead>
+        <tr>
+          <th>到診</th><th>姓名</th><th>醫師</th><th>狀態</th><th>候診時間</th>
+          <th v-if="mode === 'desk'"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="r in dayRows" :key="r.id" :class="r.status">
+          <td>{{ r.arriveText }}</td>
+          <td class="n">{{ r.patient_name }}</td>
+          <td>{{ r.doctor }}</td>
+          <td>{{ r.statusText }}</td>
+          <td class="num">{{ r.waitText }}</td>
+          <td v-if="mode === 'desk'">
+            <button v-if="r.status !== 'waiting'" class="btn ghost" :disabled="busy" @click="act('undo', r)">復原</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+
+  <div v-if="toast" class="toast">
+    <span>{{ toast.text }}</span>
+    <button class="btn ghost" @click="undoToast">復原</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+// ===== 設定 =====
+const API_BASE = 'https://clinic-wait-monitor.ivy2270.workers.dev';
+const DOCTORS = ['詹雨璇'];      // 固定出現在下拉選單的醫師；其餘醫師收到通知後會自動加入
+const POLL_MS = 4000;            // 向後端更新名單的間隔
+// =================
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+
+// 網址參數：?mode=room|desk、?k=金鑰（讀取後存起來並從網址列移除）；?warn=、?alert= 僅供測試顏色
+const params = new URLSearchParams(location.search);
+if (params.get('k')) store.set('wm_key', params.get('k'));
+const normMode = (m) => (m === 'room' || m === 'admin') ? m : 'desk';
+if (params.get('mode')) store.set('wm_mode', normMode(params.get('mode')));
+const WARN_MIN = Number(params.get('warn')) || 15;
+const ALERT_MIN = Number(params.get('alert')) || 30;
+if (params.has('k')) {
+  params.delete('k');
+  const q = params.toString();
+  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+}
+const KEY = store.get('wm_key') || '';
+const MODE = normMode(store.get('wm_mode'));
+
+const pad = (n) => String(n).padStart(2, '0');
+function fmtDuration(sec) {
+  return `${Math.floor(sec / 60)} 分`;
+}
+function fmtClock(sec) {
+  return new Date(sec * 1000).toLocaleTimeString('zh-TW', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Taipei',
+  });
+}
+
+const TZ_SEC = 8 * 3600;   // 台灣 UTC+8
+const dateStr = (sec) => new Date((sec + TZ_SEC) * 1000).toISOString().slice(0, 10);
+
+const { createApp, ref, computed, watch, onMounted, onUnmounted } = Vue;
+
+createApp({
+  setup() {
+    const mode = MODE;
+    const visits = ref([]);
+    const dayVisits = ref([]);
+    const showDay = ref(false);                                   // 櫃台：切換「今日全部」
+    const dayView = computed(() => mode === 'admin' || showDay.value);
+    const dayDate = ref(dateStr(Math.floor(Date.now() / 1000)));  // 主管：查詢日期
+    const error = ref(KEY ? '' : '尚未設定金鑰，請用含 k= 的捷徑開啟');
+    const busy = ref(false);
+    const toast = ref(null);
+    const doctor = ref(store.get('wm_doctor') || '');
+    const seen = ref([]);
+    try { seen.value = JSON.parse(store.get('wm_doctors') || '[]'); } catch (e) {}
+
+    let offset = 0;                              // 伺服器時間 - 本機時間（秒）
+    const nowSec = ref(Math.floor(Date.now() / 1000));
+    let pollTimer, tickTimer, toastTimer;
+
+    const doctors = computed(() => {
+      const all = new Set([...DOCTORS, ...seen.value, ...visits.value.map(v => v.doctor), ...dayVisits.value.map(v => v.doctor)]);
+      return [...all].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+    });
+
+    const rows = computed(() => {
+      const list = visits.value
+        .filter(v => !doctor.value || v.doctor === doctor.value)
+        .map(v => {
+          const called = v.status === 'called';
+          const sec = Math.max(0, (called ? v.called_at : nowSec.value) - v.arrived_at);
+          const min = Math.floor(sec / 60);
+          let level = 'ok';
+          if (called) level = 'done';
+          else if (min >= ALERT_MIN) level = 'alert';
+          else if (min >= WARN_MIN) level = 'warn';
+          return { ...v, level, waitText: fmtDuration(sec), arriveText: fmtClock(v.arrived_at) };
+        });
+      // 候診中在前（等最久的在最上面），已叫號的沉到下面
+      return list.sort((a, b) =>
+        (a.status === 'called') - (b.status === 'called') || a.arrived_at - b.arrived_at);
+    });
+
+    const waitingCount = computed(() => rows.value.filter(r => r.status === 'waiting').length);
+
+    watch(doctor, (v) => store.set('wm_doctor', v));
+
+    async function request(path, options) {
+      return fetch(API_BASE + path, {
+        ...options,
+        headers: { 'X-Key': KEY, 'Content-Type': 'application/json' },
+      });
+    }
+
+    async function refresh() {
+      if (!KEY) return;
+      try {
+        const res = await request('/api/list');
+        if (res.status === 401) { error.value = '金鑰無效，請用含 k= 的捷徑重新開啟'; return; }
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        offset = data.now - Date.now() / 1000;
+        nowSec.value = Math.floor(Date.now() / 1000 + offset);
+        visits.value = data.visits;
+        const fresh = data.visits.map(v => v.doctor).filter(n => !seen.value.includes(n));
+        if (fresh.length) {
+          seen.value = [...new Set([...seen.value, ...fresh])];
+          store.set('wm_doctors', JSON.stringify(seen.value));
+        }
+        error.value = '';
+      } catch (e) {
+        error.value = '連線中斷，正在重試…（畫面上的時間可能不是最新）';
+      }
+    }
+
+    const todayStr = computed(() => dateStr(nowSec.value));
+    const minDate = computed(() => dateStr(nowSec.value - 30 * 86400));
+    const maxDate = todayStr;
+    const isToday = computed(() => mode !== 'admin' || dayDate.value === todayStr.value);
+
+    const dayRows = computed(() => dayVisits.value
+      .filter(v => !doctor.value || v.doctor === doctor.value)
+      .map(v => {
+        let waitText = '—';
+        if (v.status === 'called') waitText = fmtDuration(Math.max(0, v.called_at - v.arrived_at));
+        else if (v.status === 'waiting' && isToday.value) waitText = fmtDuration(Math.max(0, nowSec.value - v.arrived_at));
+        const statusText = v.status === 'called' ? '已叫號'
+          : v.status === 'removed' ? '已移除'
+          : isToday.value ? '候診中' : '未叫號';
+        return { ...v, arriveText: fmtClock(v.arrived_at), waitText, statusText };
+      }));
+
+    async function refreshDay() {
+      if (!KEY) return;
+      if (mode === 'admin' && !dayDate.value) return;
+      try {
+        const q = mode === 'admin' ? '?date=' + encodeURIComponent(dayDate.value) : '';
+        const res = await request('/api/day' + q);
+        if (res.status === 401) { error.value = '金鑰無效，請用含 k= 的捷徑重新開啟'; return; }
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        offset = data.now - Date.now() / 1000;
+        nowSec.value = Math.floor(Date.now() / 1000 + offset);
+        dayVisits.value = data.visits;
+        error.value = '';
+      } catch (e) {
+        error.value = '連線中斷，正在重試…（畫面上的時間可能不是最新）';
+      }
+    }
+
+    const reload = () => (dayView.value ? refreshDay() : refresh());
+    const poll = () => { if (!dayView.value) refresh(); else if (isToday.value) refreshDay(); };
+    watch([dayDate, showDay], reload);
+
+    function showToast(text, id) {
+      clearTimeout(toastTimer);
+      toast.value = { text, id };
+      toastTimer = setTimeout(() => { toast.value = null; }, 6000);
+    }
+
+    async function act(action, r) {
+      if (busy.value) return;
+      busy.value = true;
+      try {
+        const res = await request('/api/' + action, { method: 'POST', body: JSON.stringify({ id: r.id }) });
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        if (!data.changed) {
+          showToast(`${r.patient_name} 的狀態剛被其他人更新`, null);
+        } else if (action === 'call') {
+          showToast(`已叫號：${r.patient_name}`, r.id);
+        } else if (action === 'remove') {
+          showToast(`已移除：${r.patient_name}`, r.id);
+        } else {
+          toast.value = null;
+        }
+        await reload();
+      } catch (e) {
+        error.value = '操作失敗，請再按一次';
+      } finally {
+        busy.value = false;
+      }
+    }
+
+    async function undoToast() {
+      const t = toast.value;
+      if (!t || !t.id) { toast.value = null; return; }
+      toast.value = null;
+      try {
+        await request('/api/undo', { method: 'POST', body: JSON.stringify({ id: t.id }) });
+        await reload();
+      } catch (e) {
+        error.value = '復原失敗，請再試一次';
+      }
+    }
+
+    // 浮動置頂（Document Picture-in-Picture，需 Chrome / Edge 新版與 https）
+    const pipSupported = 'documentPictureInPicture' in window;
+    const pipOpen = ref(false);
+    async function togglePip() {
+      if (pipOpen.value) {
+        const w = window.documentPictureInPicture.window;
+        if (w) w.close();
+        return;
+      }
+      const appEl = document.getElementById('app');
+      const pip = await window.documentPictureInPicture.requestWindow({ width: 460, height: 640 });
+      pip.document.documentElement.lang = 'zh-Hant';
+      pip.document.head.appendChild(document.getElementById('appStyle').cloneNode(true));
+      pip.document.body.appendChild(appEl);
+      document.getElementById('pipNote').style.display = 'block';
+      pipOpen.value = true;
+      pip.addEventListener('pagehide', () => {
+        document.body.appendChild(appEl);
+        document.getElementById('pipNote').style.display = 'none';
+        pipOpen.value = false;
+      });
+    }
+
+    onMounted(() => {
+      reload();
+      pollTimer = setInterval(poll, POLL_MS);
+      tickTimer = setInterval(() => { nowSec.value = Math.floor(Date.now() / 1000 + offset); }, 1000);
+    });
+    onUnmounted(() => { clearInterval(pollTimer); clearInterval(tickTimer); });
+
+    return {
+      mode, rows, doctors, doctor, waitingCount, error, busy, toast,
+      dayView, showDay, dayRows, dayDate, minDate, maxDate,
+      act, undoToast, pipSupported, pipOpen, togglePip,
+    };
+  },
+}).mount('#app');
+</script>
+</body>
+</html>
